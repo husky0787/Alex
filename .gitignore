@@ -232,3 +232,4 @@ backend/**/*_lambda.zip
 !backend/scheduler/lambda_function.zip
 !frontend/lib
 .idea
+.terraform.lock.hcl
