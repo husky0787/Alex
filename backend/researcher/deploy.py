@@ -13,10 +13,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+# Load environment variables from .env file
 load_dotenv(override=True)
 
 
 def run_command(cmd, capture_output=False, cwd=None):
+    """Run a command and handle errors."""
     try:
         result = subprocess.run(
             cmd,
@@ -114,6 +116,7 @@ def main():
     print("Alex Researcher Service - Lambda Deployment")
     print("==========================================")
 
+    # Get AWS account ID
     region = os.environ.get("DEFAULT_AWS_REGION")
     if not region:
         print("Error: DEFAULT_AWS_REGION not found in your .env file.")
@@ -149,6 +152,7 @@ def main():
 
     print(f"ECR Repository: {ecr_url}")
 
+    # Login to ECR
     print("\nLogging in to ECR...")
     password = run_command(
         ["aws", "ecr", "get-login-password", "--region", region], capture_output=True
@@ -167,10 +171,12 @@ def main():
         sys.exit(1)
     print("Login successful!")
 
+    # Generate a unique tag using timestamp
     image_tag = f"deploy-{int(time.time())}"
     local_image = f"alex-researcher:{image_tag}"
     remote_image = f"{ecr_url}:{image_tag}"
 
+    # Build Docker image
     print(f"\nBuilding Docker image for linux/amd64 with tag: {image_tag}")
     run_command(
         [
@@ -185,9 +191,11 @@ def main():
         cwd=backend_dir,
     )
 
+    # Tag for ECR
     print("\nTagging image for ECR...")
     run_command(["docker", "tag", local_image, remote_image])
 
+    # Push to ECR
     print("\nPushing image to ECR...")
     run_command(["docker", "push", remote_image])
     print("\n✅ Docker image pushed successfully!")

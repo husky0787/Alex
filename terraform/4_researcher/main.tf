@@ -13,6 +13,7 @@ provider "aws" {
   region = var.aws_region
 }
 
+# Data source for current caller identity
 data "aws_caller_identity" "current" {}
 
 locals {
@@ -20,6 +21,7 @@ locals {
   scheduler_active    = var.scheduler_enabled && local.researcher_deployed
 }
 
+# ECR repository for the researcher Docker image
 resource "aws_ecr_repository" "researcher" {
   name                 = "alex-researcher"
   image_tag_mutability = "MUTABLE"
@@ -35,6 +37,7 @@ resource "aws_ecr_repository" "researcher" {
   }
 }
 
+# Allow Lambda to pull images from ECR
 resource "aws_ecr_repository_policy" "researcher_lambda_access" {
   repository = aws_ecr_repository.researcher.name
 
@@ -61,6 +64,7 @@ resource "aws_ecr_repository_policy" "researcher_lambda_access" {
   })
 }
 
+# IAM role for researcher Lambda
 resource "aws_iam_role" "researcher_lambda_role" {
   name = "alex-researcher-lambda-role"
 
@@ -83,11 +87,13 @@ resource "aws_iam_role" "researcher_lambda_role" {
   }
 }
 
+# Lambda basic execution policy
 resource "aws_iam_role_policy_attachment" "researcher_lambda_basic" {
   role       = aws_iam_role.researcher_lambda_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# Policy for researcher Lambda to access Bedrock
 resource "aws_iam_role_policy" "researcher_lambda_bedrock_access" {
   name = "alex-researcher-lambda-bedrock-policy"
   role = aws_iam_role.researcher_lambda_role.id
@@ -108,6 +114,7 @@ resource "aws_iam_role_policy" "researcher_lambda_bedrock_access" {
   })
 }
 
+# Researcher Lambda function
 resource "aws_lambda_function" "researcher" {
   count         = local.researcher_deployed ? 1 : 0
   function_name = "alex-researcher"
@@ -139,6 +146,7 @@ resource "aws_lambda_function" "researcher" {
   }
 }
 
+# Public function URL for the researcher service
 resource "aws_lambda_function_url" "researcher" {
   count              = local.researcher_deployed ? 1 : 0
   function_name      = aws_lambda_function.researcher[0].function_name
@@ -154,6 +162,7 @@ resource "aws_lambda_permission" "allow_public_function_url_invoke" {
   invoked_via_function_url = true
 }
 
+# IAM role for EventBridge
 resource "aws_iam_role" "eventbridge_role" {
   count = local.scheduler_active ? 1 : 0
   name  = "alex-eventbridge-scheduler-role"
@@ -177,6 +186,7 @@ resource "aws_iam_role" "eventbridge_role" {
   }
 }
 
+# Lambda function for invoking researcher
 resource "aws_lambda_function" "scheduler_lambda" {
   count         = local.scheduler_active ? 1 : 0
   function_name = "alex-researcher-scheduler"
@@ -200,6 +210,7 @@ resource "aws_lambda_function" "scheduler_lambda" {
   }
 }
 
+# IAM role for scheduler Lambda
 resource "aws_iam_role" "lambda_scheduler_role" {
   count = local.scheduler_active ? 1 : 0
   name  = "alex-scheduler-lambda-role"
@@ -223,12 +234,14 @@ resource "aws_iam_role" "lambda_scheduler_role" {
   }
 }
 
+# Lambda basic execution policy
 resource "aws_iam_role_policy_attachment" "lambda_scheduler_basic" {
   count      = local.scheduler_active ? 1 : 0
   role       = aws_iam_role.lambda_scheduler_role[0].name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
+# EventBridge schedule
 resource "aws_scheduler_schedule" "research_schedule" {
   count = local.scheduler_active ? 1 : 0
   name  = "alex-research-schedule"
@@ -245,6 +258,7 @@ resource "aws_scheduler_schedule" "research_schedule" {
   }
 }
 
+# Permission for EventBridge to invoke Lambda
 resource "aws_lambda_permission" "allow_eventbridge" {
   count         = local.scheduler_active ? 1 : 0
   statement_id  = "AllowExecutionFromEventBridge"
@@ -254,6 +268,7 @@ resource "aws_lambda_permission" "allow_eventbridge" {
   source_arn    = aws_scheduler_schedule.research_schedule[0].arn
 }
 
+# Policy for EventBridge to invoke Lambda
 resource "aws_iam_role_policy" "eventbridge_invoke_lambda" {
   count = local.scheduler_active ? 1 : 0
   name  = "InvokeLambdaPolicy"

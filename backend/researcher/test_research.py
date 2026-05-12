@@ -48,11 +48,12 @@ def get_service_url():
         sys.exit(1)
 
 
-
 def test_research(topic=None):
     """Test the researcher service with a topic."""
+    # If no topic, let the agent pick one
     display_topic = topic if topic else "Agent's choice (trending topic)"
 
+    # Get service URL
     print("Getting researcher service URL...")
     service_url = get_service_url()
 
@@ -62,6 +63,7 @@ def test_research(topic=None):
 
     print(f"✅ Found service at: {service_url}")
 
+    # Test health endpoint first
     print("\nChecking service health...")
     try:
         health_url = f"{service_url}/health"
@@ -73,19 +75,22 @@ def test_research(topic=None):
         print("   The service may still be starting. Try again in a minute.")
         sys.exit(1)
 
+    # Call research endpoint
     print(f"\n🔬 Generating research for: {display_topic}")
     print("   This will take 20-30 seconds as the agent researches and analyzes...")
 
     try:
         research_url = f"{service_url}/research"
+        # Only include topic in payload if it's provided
         payload = {"topic": topic} if topic else {}
         response = requests.post(
             research_url,
             json=payload,
-            timeout=180,
+            timeout=180  # Give it 3 minutes for research
         )
         response.raise_for_status()
 
+        # Parse and display the result
         result = response.json()
 
         print("\n✅ Research generated successfully!")
@@ -113,7 +118,6 @@ def test_research(topic=None):
             except (json.JSONDecodeError, AttributeError):
                 print(f"   Response: {e.response.text}")
         sys.exit(1)
-
 
 
 def main():
