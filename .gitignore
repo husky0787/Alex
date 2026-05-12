@@ -233,3 +233,4 @@ backend/**/*_lambda.zip
 !frontend/lib
 .idea
 .terraform.lock.hcl
+/terraform/4_researcher/researcher.auto.tfvars.json
