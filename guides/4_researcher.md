@@ -20,6 +20,9 @@ After answering questions, say exactly which guide you're on and any issues. Be 
 
 ## What You'll Deploy
 
+<span style="color:red">IMPORTANT: MAJOR CHANGE:</span> The researcher deployment now uses AWS Lambda with a public Function URL instead of App Runner. This PR keeps the existing guide intact and adds only this clarification. See `terraform/4_researcher/main.tf`, `backend/researcher/deploy.py`, `backend/researcher/Dockerfile`, `backend/researcher/mcp_servers.py`, and `backend/researcher/server.py` for the focused implementation changes.
+
+
 The Researcher service is an AWS App Runner application that:
 - Uses the OpenAI Agents SDK for agent orchestration and tracing
 - Uses AWS Bedrock with OpenAI's OSS 120B model for AI capabilities

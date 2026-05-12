@@ -3,35 +3,29 @@ output "ecr_repository_url" {
   value       = aws_ecr_repository.researcher.repository_url
 }
 
-output "app_runner_service_url" {
-  description = "URL of the App Runner service"
-  value       = try("https://${aws_apprunner_service.researcher.service_url}", "Not created yet - run 'terraform apply' after deploying Docker image")
+output "researcher_url" {
+  description = "Public HTTPS URL of the researcher Lambda"
+  value       = try(aws_lambda_function_url.researcher[0].function_url, "Not created yet - run 'uv run deploy.py'")
 }
 
-output "app_runner_service_id" {
-  description = "ID of the App Runner service"
-  value       = try(aws_apprunner_service.researcher.id, "Not created yet")
+output "researcher_function_name" {
+  description = "Name of the researcher Lambda function"
+  value       = try(aws_lambda_function.researcher[0].function_name, "Not created yet")
 }
 
 output "scheduler_status" {
   description = "Status of the automated scheduler"
-  value       = var.scheduler_enabled ? "Enabled - Running every 2 hours" : "Disabled"
+  value = !local.researcher_deployed ? "Disabled - deploy the researcher image first" : (
+    var.scheduler_enabled ? "Enabled - Running every 2 hours" : "Disabled"
+  )
 }
 
 output "setup_instructions" {
   description = "Instructions for completing setup"
-  value = <<-EOT
-    
-    ✅ Researcher service deployed successfully!
-    
-    Service URL: https://${aws_apprunner_service.researcher.service_url}
-    
-    Test the researcher:
-    curl https://${aws_apprunner_service.researcher.service_url}/research
-    
-    ${var.scheduler_enabled ? "⏰ Automated research is running every 2 hours" : "💡 To enable automated research, set scheduler_enabled = true"}
-    
-    Note: You'll need to deploy your actual researcher code to App Runner.
-    Follow the guide for instructions on building and deploying the Docker image.
-  EOT
+  value = local.researcher_deployed ? format(
+    "✅ Researcher service deployed successfully!\n\nService URL: %s\n\nTest the researcher:\ncurl %s/health\n\n%s",
+    aws_lambda_function_url.researcher[0].function_url,
+    trimsuffix(aws_lambda_function_url.researcher[0].function_url, "/"),
+    var.scheduler_enabled ? "⏰ Automated research is running every 2 hours" : "💡 To enable automated research, set scheduler_enabled = true"
+  ) : "Run 'uv run deploy.py' to build, push, and deploy the researcher image."
 }
