@@ -5,16 +5,18 @@ Alex Researcher Service - Investment Advice Agent
 import os
 import logging
 from datetime import datetime, UTC
-from typing import Optional
+from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
-from agents import Agent, Runner, trace
+from agents import Agent, RunHooks, Runner, trace
 from agents.extensions.models.litellm_model import LitellmModel
 
 # Suppress LiteLLM warnings about optional dependencies
+logging.basicConfig(level=logging.INFO)
 logging.getLogger("LiteLLM").setLevel(logging.CRITICAL)
+logger = logging.getLogger(__name__)
 
 # Import from our modules
 from context import get_agent_instructions, DEFAULT_RESEARCH_PROMPT
@@ -25,6 +27,35 @@ from tools import ingest_financial_document
 load_dotenv(override=True)
 
 app = FastAPI(title="Alex Researcher Service")
+
+
+MCP_LOGGING_ENABLED = os.getenv("MCP_LOGGING") == "True"
+
+
+def _trim_for_log(value: Any, max_length: int = 1500) -> str:
+    text = str(value)
+    if len(text) <= max_length:
+        return text
+    return f"{text[:max_length]}... [trimmed {len(text) - max_length} chars]"
+
+
+class ResearchLoggingHooks(RunHooks):
+    async def on_tool_start(self, context, agent, tool) -> None:
+        if MCP_LOGGING_ENABLED:
+            logger.info(
+                "[tool:start] name=%s type=%s repr=%s",
+                getattr(tool, "name", type(tool).__name__),
+                type(tool).__name__,
+                _trim_for_log(repr(tool), max_length=500),
+            )
+
+    async def on_tool_end(self, context, agent, tool, result) -> None:
+        if MCP_LOGGING_ENABLED:
+            logger.info(
+                "[tool:end] name=%s result=%s",
+                getattr(tool, "name", type(tool).__name__),
+                _trim_for_log(result),
+            )
 
 
 # Request model
@@ -41,25 +72,37 @@ async def run_research_agent(topic: str = None) -> str:
     else:
         query = DEFAULT_RESEARCH_PROMPT
 
-    # Please override these variables with the region you are using
-    # Other choices: us-west-2 (for OpenAI OSS models) and eu-central-1
-    REGION = "us-east-1"
-    os.environ["AWS_REGION_NAME"] = REGION  # LiteLLM's preferred variable
-    os.environ["AWS_REGION"] = REGION  # Boto3 standard
-    os.environ["AWS_DEFAULT_REGION"] = REGION  # Fallback
+    if MCP_LOGGING_ENABLED:
+        logger.info(
+            "Starting research agent topic_provided=%s query_preview=%s",
+            bool(topic),
+            _trim_for_log(query, max_length=500),
+        )
 
-    # Please override this variable with the model you are using
-    # Common choices: bedrock/eu.amazon.nova-pro-v1:0 for EU and bedrock/us.amazon.nova-pro-v1:0 for US
-    # or bedrock/amazon.nova-pro-v1:0 if you are not using inference profiles
-    # bedrock/openai.gpt-oss-120b-1:0 for OpenAI OSS models
-    # bedrock/converse/us.anthropic.claude-sonnet-4-20250514-v1:0 for Claude Sonnet 4
-    # NOTE that nova-pro is needed to support tools and MCP servers; nova-lite is not enough - thank you Yuelin L.!
-    MODEL = "bedrock/us.amazon.nova-pro-v1:0"
-    model = LitellmModel(model=MODEL)
+    region = os.environ.get("BEDROCK_REGION", "us-west-2")
+    os.environ["AWS_REGION_NAME"] = region
+    os.environ["AWS_REGION"] = region
+    os.environ["AWS_DEFAULT_REGION"] = region
+    model_name = os.environ.get(
+        "RESEARCHER_MODEL", "bedrock/global.openai.gpt-oss-120b-1:0"
+    )
+    model = LitellmModel(model=model_name)
+
+    if MCP_LOGGING_ENABLED:
+        logger.info(
+            "Research agent runtime model=%s aws_region=%s aws_default_region=%s aws_region_name=%s playwright_logging=%s",
+            model_name,
+            os.environ.get("AWS_REGION"),
+            os.environ.get("AWS_DEFAULT_REGION"),
+            os.environ.get("AWS_REGION_NAME"),
+            os.environ.get("DEBUG"),
+        )
 
     # Create and run the agent with MCP server
     with trace("Researcher"):
-        async with create_playwright_mcp_server(timeout_seconds=60) as playwright_mcp:
+        async with create_playwright_mcp_server(timeout_seconds=120) as playwright_mcp:
+            if MCP_LOGGING_ENABLED:
+                logger.info("Playwright MCP server context created")
             agent = Agent(
                 name="Alex Investment Researcher",
                 instructions=get_agent_instructions(),
@@ -68,7 +111,23 @@ async def run_research_agent(topic: str = None) -> str:
                 mcp_servers=[playwright_mcp],
             )
 
-            result = await Runner.run(agent, input=query, max_turns=15)
+            try:
+                result = await Runner.run(
+                    agent,
+                    input=query,
+                    max_turns=15,
+                    hooks=ResearchLoggingHooks() if MCP_LOGGING_ENABLED else None,
+                )
+            except Exception:
+                if MCP_LOGGING_ENABLED:
+                    logger.exception("Research agent run failed")
+                raise
+
+            if MCP_LOGGING_ENABLED:
+                logger.info(
+                    "Research agent run completed output_preview=%s",
+                    _trim_for_log(result.final_output, max_length=1000),
+                )
 
     return result.final_output
 
@@ -95,6 +154,8 @@ async def research(request: ResearchRequest) -> str:
 
     If no topic is provided, the agent will pick a trending topic.
     """
+    logger.info(f"MCP_LOGGING_ENABLED={MCP_LOGGING_ENABLED}")
+
     try:
         response = await run_research_agent(request.topic)
         return response
@@ -147,6 +208,7 @@ async def health():
         "debug_container": container_indicators,
         "aws_region": os.environ.get("AWS_DEFAULT_REGION", "not set"),
         "bedrock_model": "bedrock/amazon.nova-pro-v1:0",
+        "mcp_logging_enabled": MCP_LOGGING_ENABLED,
     }
 
 
@@ -156,21 +218,20 @@ async def test_bedrock():
     try:
         import boto3
 
-        # Set ALL region environment variables
-        os.environ["AWS_REGION_NAME"] = "us-east-1"
-        os.environ["AWS_REGION"] = "us-east-1"
-        os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
+        region = os.environ.get("BEDROCK_REGION", "us-west-2")
+        model_id = os.environ.get("RESEARCHER_MODEL", "bedrock/global.openai.gpt-oss-120b-1:0")
 
-        # Debug: Check what region boto3 is actually using
+        os.environ["AWS_REGION_NAME"] = region
+        os.environ["AWS_REGION"] = region
+        os.environ["AWS_DEFAULT_REGION"] = region
+
         session = boto3.Session()
         actual_region = session.region_name
 
-        # Try to create Bedrock client explicitly in us-west-2
-        client = boto3.client("bedrock-runtime", region_name="us-west-2")
+        client = boto3.client("bedrock-runtime", region_name=region)
 
-        # Debug: Try to list models to verify connection
         try:
-            bedrock_client = boto3.client("bedrock", region_name="us-west-2")
+            bedrock_client = boto3.client("bedrock", region_name=region)
             models = bedrock_client.list_foundation_models()
             openai_models = [
                 m["modelId"] for m in models["modelSummaries"] if "openai" in m["modelId"].lower()
@@ -178,8 +239,7 @@ async def test_bedrock():
         except Exception as list_error:
             openai_models = f"Error listing: {str(list_error)}"
 
-        # Try basic model invocation with Nova Pro
-        model = LitellmModel(model="bedrock/amazon.nova-pro-v1:0")
+        model = LitellmModel(model=model_id)
 
         agent = Agent(
             name="Test Agent",
