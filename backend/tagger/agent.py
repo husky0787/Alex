@@ -8,7 +8,7 @@ import logging
 from decimal import Decimal
 
 from pydantic import BaseModel, Field, field_validator, ConfigDict
-from agents import Agent, Runner, trace
+from agents import Agent, ModelBehaviorError, Runner, trace
 from agents.extensions.models.litellm_model import LitellmModel
 from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -219,11 +219,11 @@ async def tag_instruments(instruments: List[dict]) -> List[InstrumentClassificat
 
     # Add retry decorator to classify_instrument calls
     @retry(
-        retry=retry_if_exception_type(RateLimitError),
+        retry=retry_if_exception_type((RateLimitError, ModelBehaviorError)),
         stop=stop_after_attempt(5),
         wait=wait_exponential(multiplier=1, min=4, max=60),
         before_sleep=lambda retry_state: logger.info(
-            f"Tagger: Rate limit hit, retrying in {retry_state.next_action.sleep} seconds..."
+            f"Tagger: Retryable model error, retrying in {retry_state.next_action.sleep} seconds..."
         ),
     )
     async def classify_with_retry(symbol, name, instrument_type):
@@ -231,6 +231,7 @@ async def tag_instruments(instruments: List[dict]) -> List[InstrumentClassificat
 
     # Process instruments sequentially with small delay
     results = []
+    failures = []
     for i, instrument in enumerate(instruments):
         # Small delay between requests to avoid rate limits
         if i > 0:
@@ -246,10 +247,15 @@ async def tag_instruments(instruments: List[dict]) -> List[InstrumentClassificat
             results.append(classification)
         except Exception as e:
             logger.error(f"Failed to classify {instrument['symbol']}: {e}")
+            failures.append(e)
             results.append(None)
 
     # Filter out None values
-    return [r for r in results if r is not None]
+    classifications = [r for r in results if r is not None]
+    if failures and not classifications:
+        raise RuntimeError("Failed to classify all requested instruments") from failures[-1]
+
+    return classifications
 
 
 def classification_to_db_format(classification: InstrumentClassification) -> InstrumentCreate:

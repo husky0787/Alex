@@ -5,9 +5,11 @@ Simple test for Tagger agent
 
 import asyncio
 import json
+import os
 from dotenv import load_dotenv
 
 load_dotenv(override=True)
+os.environ.setdefault("OPENAI_AGENTS_DISABLE_TRACING", "1")
 
 from lambda_handler import lambda_handler
 

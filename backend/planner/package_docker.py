@@ -56,12 +56,17 @@ def package_lambda():
 
         req_file = temp_path / "requirements.txt"
         req_file.write_text("\n".join(filtered_requirements))
-        
+
+        docker_user_args = (
+            ["--user", f"{os.getuid()}:{os.getgid()}"] if os.name == "posix" else []
+        )
+
         # Use Docker to install dependencies for Lambda's architecture
         # The --no-emit-project excludes the current project from requirements
         # We still need to manually install the database package
         docker_cmd = [
             "docker", "run", "--rm",
+            *docker_user_args,
             "--platform", "linux/amd64",
             "-v", f"{temp_path}:/build",
             "-v", f"{backend_dir}/database:/database",
