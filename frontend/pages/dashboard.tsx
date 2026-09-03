@@ -1,4 +1,4 @@
-import { useUser, useAuth } from "@clerk/nextjs";
+import { useAuth } from "@clerk/nextjs";
 import { useEffect, useState, useCallback } from "react";
 import { API_URL } from "../lib/config";
 import Layout from "../components/Layout";
@@ -47,8 +47,7 @@ interface Instrument {
 }
 
 export default function Dashboard() {
-  const { user, isLoaded: userLoaded } = useUser();
-  const { getToken } = useAuth();
+  const { getToken, isLoaded: authLoaded, isSignedIn } = useAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [positions, setPositions] = useState<Record<string, Position[]>>({});
@@ -108,8 +107,6 @@ export default function Dashboard() {
   // Load user data and accounts
   useEffect(() => {
     async function loadData() {
-      if (!userLoaded || !user) return;
-
       try {
         const token = await getToken();
         if (!token) {
@@ -218,11 +215,11 @@ export default function Dashboard() {
     }
 
     loadData();
-  }, [userLoaded, user, getToken]);
+  }, [authLoaded, isSignedIn, getToken]);
 
   // Listen for analysis completion events to refresh data
   useEffect(() => {
-    if (!userLoaded || !user) return;
+    if (!authLoaded || !isSignedIn) return;
 
     const handleAnalysisCompleted = async () => {
       try {
@@ -285,7 +282,7 @@ export default function Dashboard() {
     return () => {
       window.removeEventListener('analysis:completed', handleAnalysisCompleted);
     };
-  }, [userLoaded, user, getToken, calculatePortfolioSummary]);
+  }, [authLoaded, isSignedIn, getToken, calculatePortfolioSummary]);
 
   // Save user settings
   const handleSaveSettings = async () => {

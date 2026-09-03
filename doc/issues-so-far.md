@@ -1,8 +1,8 @@
 # Alex Issues So Far
 
-Last updated: 2026-09-01
+Last updated: 2026-09-03
 
-This document records the issues encountered while working through Guides 5 and 6, their root causes, the fixes applied, and the verification results.
+This document records the issues encountered while working through Guides 5, 6, 7, and 8, their root causes, the fixes applied, and the verification results.
 
 ## Current Status
 
@@ -14,6 +14,10 @@ This document records the issues encountered while working through Guides 5 and 
 | Tagger local test | Working | VTI classification succeeds, including retry coverage for invalid model output. |
 | Retirement local test | Working | Test completed with status 200 after the Data API became available. |
 | Lambda packages | Working | All five agent ZIP files were built successfully. |
+| Next.js local frontend | Working | Dependencies were rebuilt after a truncated SWC binary caused a native crash. |
+| Dashboard local API loading | Working | Clerk authentication and all initial dashboard API requests were verified. |
+| CloudWatch Agent Performance dashboard | Working | Lambda activity is visible in `alex-agent-performance`. |
+| CloudWatch AI Model Usage dashboard | Bedrock working | The dashboard now queries the deployed Bedrock region and exact inference-profile model ID. SageMaker panels remain empty because the configured endpoint is not currently deployed in `us-east-1`. |
 | OpenAI tracing | Disabled for local tests | Bedrock inference still works; only optional OpenAI trace export is disabled. |
 | LangFuse | Not configured yet | This is introduced in Guide 8. |
 
@@ -325,6 +329,155 @@ All five packages completed successfully:
 - Charter
 - Retirement
 - Planner
+
+## 10. Next.js Failed with `Bus error (core dumped)`
+
+### Symptom
+
+The FastAPI backend started successfully, but the Next.js process stopped immediately:
+
+```text
+Frontend: > next dev
+Frontend: Bus error (core dumped)
+Frontend failed to start
+```
+
+The preceding uv hardlink and nested virtual-environment messages were warnings and were unrelated to the crash.
+
+### Root Cause
+
+The installed Next.js SWC native binaries were truncated. The active glibc binary was only `25,387,078` bytes, while the official `@next/swc-linux-x64-gnu@15.5.3` package contains a `142,917,576` byte binary. Its ELF header pointed beyond the end of the local file, and loading it directly exited with status 135 (`SIGBUS`).
+
+An isolated download of the same package loaded successfully with Node.js 24.14.0, proving that the Node.js version and CPU architecture were not the cause. The likely trigger was the first `npm install` being interrupted by an `EAI_AGAIN` registry lookup failure and leaving partially extracted optional packages behind.
+
+### Fix
+
+Run the clean install from `frontend`, where `package-lock.json` is located:
+
+```bash
+cd frontend
+npm ci --cache /tmp/alex-npm-repair-cache --prefer-online
+```
+
+Running `npm ci` from `scripts` fails with `EUSAGE` because that directory does not contain a lockfile.
+
+### Verification
+
+- 493 packages were installed successfully.
+- The SWC binary size was `142,917,576` bytes.
+- Requiring `@next/swc-linux-x64-gnu` succeeded.
+- Next.js 15.5.3 compiled the application and served `/` with HTTP 200.
+
+## 11. Dashboard Remained on an Empty Loading Skeleton
+
+### Symptom
+
+After Clerk sign-in, `/dashboard` displayed the navigation, `Dashboard` heading, disclaimer, and footer, but none of the dashboard cards or settings. The content area remained on its text-free loading skeleton indefinitely.
+
+### Diagnosis
+
+The infrastructure and token were checked independently before changing code:
+
+- Clerk was loaded and reported an active user and session.
+- `getToken()` returned an RS256 JWT with the expected issuer and `http://localhost:3000` authorized party.
+- The token timestamps were valid, and its key ID existed in the configured Clerk JWKS.
+- The public JWKS endpoint returned HTTP 200.
+- Aurora Data API queries succeeded and all five expected tables existed.
+- FastAPI health and authentication rejection checks responded normally.
+- No dashboard request reached `/api/user` while the skeleton was stuck.
+
+### Root Cause
+
+The dashboard data effect returned before requesting a token whenever its Clerk hook state had not yet synchronized after the development Account Portal handoff. Although the underlying Clerk client already had a valid user and session, the early return left `loading` set to `true` and provided no retry or terminal state.
+
+Local development also depended on the browser reaching FastAPI directly on port 8000. This is fragile in Codespaces because the frontend and backend ports may be forwarded independently.
+
+### Fix
+
+The Guide 7 frontend now:
+
+- Calls `getToken()` from the dashboard effect instead of returning before the attempt.
+- Ends the loading state explicitly when no token is available.
+- Uses relative `/api/*` URLs in both development and production.
+- Proxies `/api/*` from Next.js to `127.0.0.1:8000` only during development.
+- Keeps static export enabled only for production, where CloudFront routes `/api/*` to API Gateway.
+
+Updated files:
+
+- `frontend/pages/dashboard.tsx`
+- `frontend/lib/config.ts`
+- `frontend/next.config.ts`
+
+### Verification
+
+After the change, the complete initial dashboard request chain succeeded:
+
+```text
+GET /api/user      200 OK
+GET /api/accounts  200 OK
+GET /api/jobs      200 OK
+```
+
+Additional verification:
+
+- `npm run lint` completed with no errors; one pre-existing unused-import warning remains in `components/ErrorBoundary.tsx`.
+- `tsc --noEmit` completed successfully.
+- The local frontend and backend remained available at ports 3000 and 8000.
+
+## 12. CloudWatch AI Model Usage Dashboard Had No Data
+
+### Symptom
+
+The `alex-agent-performance` dashboard displayed Lambda invocation and duration data, while all panels in `alex-ai-model-usage` appeared empty.
+
+### Diagnosis
+
+The working Agent Performance dashboard established that the Lambda functions had run and that CloudWatch access was working. Read-only AWS checks then found that the deployed Planner Lambda used:
+
+```text
+BEDROCK_REGION=us-west-2
+BEDROCK_MODEL_ID=us.amazon.nova-pro-v1:0
+```
+
+However, the deployed AI Model Usage dashboard queried:
+
+```text
+region=us-east-1
+ModelId=amazon.nova-pro-v1:0
+```
+
+CloudWatch Bedrock metrics are region-scoped and the `ModelId` dimension must match exactly. The dashboard's combination returned no data, while `us-west-2` with `us.amazon.nova-pro-v1:0` returned Bedrock invocation, token, and latency metrics.
+
+### Root Cause
+
+`terraform/8_enterprise/terraform.tfvars` did not match the Bedrock configuration deployed from Guide 6. It omitted the `us.` inference-profile prefix and selected the Lambda deployment region instead of the Bedrock runtime region.
+
+The `region=us-east-1` value in the CloudWatch console URL was not the cause. Each metric widget has its own region, and the Bedrock widgets were incorrectly configured with `us-east-1`.
+
+### Fix
+
+The Guide 8 monitoring configuration was changed to:
+
+```hcl
+bedrock_region   = "us-west-2"
+bedrock_model_id = "us.amazon.nova-pro-v1:0"
+```
+
+The same values were applied to `terraform/8_enterprise/terraform.tfvars.example` and the model variable default so that future deployments start with values consistent with Guide 6. Terraform then updated only `aws_cloudwatch_dashboard.ai_model_usage` in place.
+
+### Verification
+
+- The Terraform plan reported `0 to add, 1 to change, 0 to destroy`.
+- The deployed dashboard JSON now uses `us-west-2` and `us.amazon.nova-pro-v1:0` for all three Bedrock panels.
+- CloudWatch returned 13 recent datapoints, totaling 78,671 input tokens and 24,642 output tokens.
+- Invocation latency data was also present; the latest checked point averaged about 3,214 ms.
+- A final Terraform plan reported `No changes`.
+
+When viewing historical data, select a time range that includes the most recent invocation. At verification time, the latest Bedrock datapoint was `2026-09-02 08:10 UTC`, so a three-day range displayed it.
+
+### Separate SageMaker Status
+
+The bottom SageMaker panels remain empty for a different reason: `alex-embedding-endpoint` does not currently exist in the configured `us-east-1` region, and no matching `AWS/SageMaker` invocation metrics were found there. Recreate the Guide 2 endpoint before expecting those panels to populate; this does not affect the repaired Bedrock panels.
 
 ## Remaining Notes
 

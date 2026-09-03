@@ -11,7 +11,7 @@ variable "bedrock_region" {
 }
 
 variable "bedrock_model_id" {
-  description = "Bedrock model ID to monitor (e.g., amazon.nova-pro-v1:0)"
+  description = "Bedrock model ID to monitor (e.g., us.amazon.nova-pro-v1:0)"
   type        = string
-  default     = "amazon.nova-pro-v1:0"
+  default     = "us.amazon.nova-pro-v1:0"
 }
