@@ -215,6 +215,8 @@ async def update_user(user_update: UserUpdate, clerk_user_id: str = Depends(get_
         updated_user = db.users.find_by_clerk_id(clerk_user_id)
         return updated_user
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error updating user: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -254,6 +256,8 @@ async def create_account(account: AccountCreate, clerk_user_id: str = Depends(ge
         created_account = db.accounts.find_by_id(account_id)
         return created_account
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating account: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -532,6 +536,8 @@ async def trigger_analysis(request: AnalyzeRequest, clerk_user_id: str = Depends
             message="Analysis started. Check job status for results."
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error triggering analysis: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -601,6 +607,8 @@ async def reset_accounts(clerk_user_id: str = Depends(get_current_user_id)):
             "accounts_deleted": deleted_count
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error resetting accounts: {e}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -759,6 +767,8 @@ async def populate_test_data(clerk_user_id: str = Depends(get_current_user_id)):
             "accounts": all_accounts
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error populating test data: {e}")
         raise HTTPException(status_code=500, detail=str(e))

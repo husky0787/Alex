@@ -39,9 +39,9 @@ locals {
   name_prefix = "alex"
 
   common_tags = {
-    Project     = "alex"
-    Part        = "7_frontend"
-    ManagedBy   = "terraform"
+    Project   = "alex"
+    Part      = "7_frontend"
+    ManagedBy = "terraform"
   }
 }
 
@@ -238,10 +238,10 @@ resource "aws_apigatewayv2_api" "main" {
   tags          = local.common_tags
 
   cors_configuration {
-    allow_credentials = false  # Cannot be true when allow_origins is "*"
+    allow_credentials = false # Cannot be true when allow_origins is "*"
     allow_headers     = ["authorization", "content-type", "x-amz-date", "x-api-key", "x-amz-security-token"]
     allow_methods     = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    allow_origins     = ["*"]  # CORS is handled in Lambda via environment variables
+    allow_origins     = ["*"] # CORS is handled in Lambda via environment variables
     max_age           = 300
   }
 }
@@ -292,6 +292,14 @@ resource "aws_lambda_permission" "api_gw" {
 }
 
 # CloudFront distribution
+resource "aws_cloudfront_function" "static_routes" {
+  name    = "${local.name_prefix}-static-routes"
+  runtime = "cloudfront-js-2.0"
+  comment = "Resolve Next.js static pages without replacing API errors"
+  publish = true
+  code    = file("${path.module}/static_routes.js")
+}
+
 resource "aws_cloudfront_distribution" "main" {
   enabled             = true
   is_ipv6_enabled     = true
@@ -331,6 +339,11 @@ resource "aws_cloudfront_distribution" "main" {
     cached_methods   = ["GET", "HEAD"]
     target_origin_id = "S3-${aws_s3_bucket.frontend.id}"
 
+    function_association {
+      event_type   = "viewer-request"
+      function_arn = aws_cloudfront_function.static_routes.arn
+    }
+
     forwarded_values {
       query_string = false
       cookies {
@@ -344,38 +357,40 @@ resource "aws_cloudfront_distribution" "main" {
     max_ttl                = 86400
   }
 
-  # Behavior for API calls (/api/*)
-  ordered_cache_behavior {
-    path_pattern     = "/api/*"
-    allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
-    cached_methods   = ["GET", "HEAD"]
-    target_origin_id = "API-Gateway"
+  # Keep the API root and all child paths out of static-page routing.
+  dynamic "ordered_cache_behavior" {
+    for_each = ["/api", "/api/*"]
+    content {
+      path_pattern     = ordered_cache_behavior.value
+      allowed_methods  = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
+      cached_methods   = ["GET", "HEAD"]
+      target_origin_id = "API-Gateway"
 
-    forwarded_values {
-      query_string = true
-      headers      = ["Authorization", "Content-Type", "Accept"]
-      cookies {
-        forward = "all"
+      forwarded_values {
+        query_string = true
+        headers      = ["Authorization", "Content-Type", "Accept"]
+        cookies {
+          forward = "all"
+        }
       }
+
+      viewer_protocol_policy = "redirect-to-https"
+      min_ttl                = 0
+      default_ttl            = 0
+      max_ttl                = 0
     }
-
-    viewer_protocol_policy = "redirect-to-https"
-    min_ttl                = 0
-    default_ttl            = 0
-    max_ttl                = 0
   }
 
-  # Custom error pages for SPA routing
+  # Preserve API error status/body and avoid caching authorization failures.
+  # Static page routing is handled before the request reaches the S3 origin.
   custom_error_response {
-    error_code         = 404
-    response_code      = 200
-    response_page_path = "/index.html"
+    error_code            = 404
+    error_caching_min_ttl = 0
   }
 
   custom_error_response {
-    error_code         = 403
-    response_code      = 200
-    response_page_path = "/index.html"
+    error_code            = 403
+    error_caching_min_ttl = 0
   }
 
   restrictions {
