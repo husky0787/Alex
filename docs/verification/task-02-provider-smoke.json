@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "checked_at": "2026-10-25T12:05:31.491359+00:00",
+  "source": "massive",
+  "symbol": "AAPL",
+  "adjustment": "split-adjusted",
+  "from_date": "2026-07-28",
+  "to_date": "2026-10-23",
+  "expected_session_count": 63,
+  "accepted_count": 63,
+  "run_id": "cd76a530-1b0b-4929-bc49-69129ef7e3df",
+  "run_status": "succeeded",
+  "error_code": null,
+  "raw_key": "raw/massive/AAPL/cd76a530-1b0b-4929-bc49-69129ef7e3df/b5d219e6c3cf0cbd982b6cf60229aae9dcf8c1825ec5773a6e653e529c2d5fe8.json",
+  "raw_sha256": "b5d219e6c3cf0cbd982b6cf60229aae9dcf8c1825ec5773a6e653e529c2d5fe8",
+  "latest_verified_trade_date": "2026-10-23",
+  "subscription_plan": "not introspected; confirm Stocks Basic in provider dashboard",
+  "authenticated_api_check": "passed; test issuer, real API and PostgreSQL"
+}

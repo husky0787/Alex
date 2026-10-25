@@ -38,6 +38,9 @@ export default function Layout({ children }: LayoutProps) {
 
                 {/* Navigation Links */}
                 <div className="hidden md:flex items-center gap-6">
+                  <Link href="/market-data" className={`text-sm font-medium transition-colors ${isActive("/market-data") ? "text-primary" : "text-gray-600 hover:text-primary"}`}>
+                    Market Data
+                  </Link>
                   <Link
                     href="/dashboard"
                     className={`text-sm font-medium transition-colors ${
@@ -91,7 +94,10 @@ export default function Layout({ children }: LayoutProps) {
             </div>
 
             {/* Mobile Navigation */}
-            <div className="md:hidden flex items-center gap-4 pb-3">
+            <div className="md:hidden flex items-center gap-4 pb-3 overflow-x-auto">
+              <Link href="/market-data" className={`text-sm font-medium whitespace-nowrap transition-colors ${isActive("/market-data") ? "text-primary" : "text-gray-600 hover:text-primary"}`}>
+                Market Data
+              </Link>
               <Link
                 href="/dashboard"
                 className={`text-sm font-medium transition-colors ${

@@ -16,6 +16,7 @@ members = [
     "database",
     "api",
     "scheduler",
+    "market_data",
 ]
 
 [tool.uv.sources]
