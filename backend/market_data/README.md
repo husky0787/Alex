@@ -1,6 +1,6 @@
 # Verified daily market data
 
-This package adds a traceable daily-price path alongside Alex's existing account and analysis services. The first screen shows AAPL. It does not treat seeded `instruments.current_price` or the planner's legacy random fallback as a verified quote; replacing portfolio/analysis pricing is task 5.
+This package adds a traceable daily-price path alongside Alex's account services. The first screen shows AAPL. Seeded `instruments.current_price` is not a verified quote. Task 3 removes the random fallback and temporarily blocks new analysis; task 5 will connect immutable portfolio price snapshots and restore analysis using verified prices.
 
 ```text
 Massive daily REST bars → raw response → validate → PostgreSQL history + run record
@@ -36,9 +36,11 @@ uv run --project backend --locked --package api -m market_data --env-file .env i
 uv run --project backend --locked --package api -m market_data --env-file .env latest --symbol AAPL
 ```
 
-The dated ingestion command is the verification example; choose an already published date for subsequent use. One ingestion accepts at most 90 calendar days. Daily and backfill requests use the same pipeline entry point. The CLI returns nonzero on failed or empty ingestion.
+The dated ingestion command is the verification example; choose an already published date for subsequent use. One ingestion accepts at most 90 calendar days. Daily and backfill requests use the same pipeline entry point. The CLI returns nonzero on failed, partial or empty ingestion.
 
-Raw responses default to `.local/market-data/raw/...`, ignored by Git. Every run stores the raw key, SHA-256 digest and location. Observations refer to the run and a normalized-value version. Repeating an unchanged bar preserves its observation identity and still creates a separate run/raw response. Raw writes precede database publication; price inserts and successful completion share one transaction. Invalid responses fail without publishing a partial batch. Quarantine, retries, recovery and concurrent-run control belong to task 3.
+Raw responses default to `.local/market-data/raw/...`, ignored by Git. Every HTTP attempt stores its raw key, SHA-256 digest and location; the run points to the latest saved response. Quarantine records refer to that immutable object and a zero-based row index (null for an invalid whole response). Quarantine is logical exclusion from published prices, not a copy into a public bucket. Valid rows in a mixed response publish with a `partial` run status; malformed envelopes publish nothing.
+
+Repeating an unchanged bar preserves its version identity while retaining each run's sighting. A correction A→B→A displays the latest sighting of A without duplicating A or losing B. Raw writes precede database publication; price versions, sightings, quarantine and terminal completion commit together. `completed_through` stops at the first missing expected trading date within this run. It is not a global watermark; a fresh visible price does not prove the entire requested history is complete.
 
 For the later AWS environment, `ingest --raw-bucket <private-data-bucket>` uses encrypted S3 writes with overwrite prevention. Provision that private bucket separately from frontend hosting and grant narrowly scoped access. The adapter is tested with AWS stubs; no bucket has been provisioned or live S3 call validated by this task.
 
@@ -88,7 +90,22 @@ Normal tests use controlled fixtures and make no provider request. The live smok
 
 ## Failure boundaries
 
-Malformed envelopes/bars, HTTP errors, timeouts and storage failures have explicit run outcomes. The pipeline does not retry automatically yet. If PostgreSQL is completely unreachable after raw storage, the run may remain `running` or lack its raw reference; this is not considered success and requires the recovery work in task 3. The additive migration creates new tables only; no legacy user, account, position or instrument table is altered.
+Transport failures and HTTP 408/429/500/502/503/504 get at most three attempts, with 1/2 second backoff and a longer valid `Retry-After` respected. A requested delay over 60 seconds stops the run for later operator action. Authentication and schema/quality failures are not retried automatically. Attempt records survive recovery so restarting an interrupted run does not reset its budget or bypass backoff. A new explicit retry has its own bounded budget and points to its original run.
+
+Run `migrate` before using the new commands on a task-2 database. It adds run metadata, quarantine, attempts and sightings, and backfills existing price provenance. It does not alter legacy user/account/position/instrument tables. Use a direct PostgreSQL connection, not a transaction-pooling proxy: ingestion uses session advisory locks. Another run for the same symbol returns `symbol_busy` without fetching or advancing completion; retry it once the owner finishes.
+
+```sh
+uv run --project backend --locked --package api -m market_data --env-file .env runs --status running
+uv run --project backend --locked --package api -m market_data --env-file .env inspect <run-uuid>
+uv run --project backend --locked --package api -m market_data --env-file .env resume <run-uuid>
+uv run --project backend --locked --package api -m market_data --env-file .env retry <run-uuid>
+```
+
+`inspect` shows private operator evidence: run state, HTTP attempts, quarantine reasons and published observations. `resume` acquires the symbol lock and replays a committed successful raw response after checking its digest; otherwise it consumes the remaining attempt budget. It retains the original observation timestamp so delayed recovery cannot replace a newer source correction. Terminal runs are not changed by resume. `retry` refetches a failed/partial/unavailable range into a new linked run, leaving old evidence intact. Configure the same `--raw-dir` or `--raw-bucket` for recovery. Inspect and saved-response replay need no provider API key; fetching does.
+
+After a database outage or ambiguous commit, reconnect and inspect/resume the original run. A successful committed run is already complete; never assume an error means nothing committed. A crash between object save and pointer commit can leave an orphan object; recovery does not guess its contents and may refetch within its remaining budget. Unrecoverable/mismatched raw evidence fails clearly. Fix the external fault, then explicitly retry. Migration is tested against both the original task-2 schema and repeat invocation.
+
+Until task 5 supplies price snapshots, `/api/analyze` returns an authenticated JSON `503` with code `verified_price_snapshot_required` before creating or queueing a job. Planner also fails existing queued/direct work before Tagger/LLM calls. The `/market-data` page remains usable; this task does not make legacy reports or seed prices verified.
 
 The Lambda packaging helper now copies this module and exports locked external API dependencies. A full Linux Lambda ZIP was not built here because Docker is unavailable; verify its size and runtime in the later deployment stage.
 

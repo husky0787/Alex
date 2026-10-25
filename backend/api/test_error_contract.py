@@ -196,6 +196,12 @@ class APIErrorContractTests(unittest.TestCase):
         response = self.client.post("/api/accounts", json={"account_name": ""}, headers=self.headers())
         self.assert_json_error(response, 422)
 
+    def test_analysis_rejects_unverified_legacy_prices_before_creating_or_queueing_job(self):
+        self.rows([{"clerk_user_id": "user_alice"}])
+        response = self.client.post("/api/analyze", json={}, headers=self.headers())
+        self.assert_json_error(response, 503)
+        self.assertEqual(response.json()["code"], "verified_price_snapshot_required")
+
     def test_real_database_failure_still_returns_json_500_without_internal_details(self):
         self.rds.add_client_error("execute_statement", service_error_code="DatabaseUnavailableException",
                                   service_message="private database details", http_status_code=500)

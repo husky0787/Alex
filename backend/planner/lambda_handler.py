@@ -24,6 +24,7 @@ from src import Database
 from templates import ORCHESTRATOR_INSTRUCTIONS
 from agent import create_agent, handle_missing_instruments, load_portfolio_summary
 from market import update_instrument_prices
+from prices import require_verified_analysis
 from observability import observe
 
 logger = logging.getLogger()
@@ -43,6 +44,9 @@ async def run_orchestrator(job_id: str) -> None:
     try:
         # Update job status to running
         db.jobs.update_status(job_id, 'running')
+
+        # Also protect direct invocation and messages queued before task 3.
+        require_verified_analysis()
         
         # Handle missing instruments first (non-agent pre-processing)
         await asyncio.to_thread(handle_missing_instruments, job_id, db)

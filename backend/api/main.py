@@ -517,7 +517,7 @@ async def list_instruments(clerk_user_id: str = Depends(get_current_user_id)):
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 async def trigger_analysis(request: AnalyzeRequest, clerk_user_id: str = Depends(get_current_user_id)):
-    """Trigger portfolio analysis"""
+    """Fail closed until task 5 connects immutable verified price snapshots."""
 
     try:
         # Get user
@@ -526,36 +526,11 @@ async def trigger_analysis(request: AnalyzeRequest, clerk_user_id: str = Depends
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        # Create job
-        job_id = db.jobs.create_job(
-            clerk_user_id=clerk_user_id,
-            job_type="portfolio_analysis",
-            request_payload=request.model_dump()
-        )
-
-        # Get the created job
-        job = db.jobs.find_by_id(job_id)
-
-        # Send to SQS
-        if SQS_QUEUE_URL:
-            message = {
-                'job_id': str(job_id),
-                'clerk_user_id': clerk_user_id,
-                'analysis_type': request.analysis_type,
-                'options': request.options
-            }
-
-            sqs_client.send_message(
-                QueueUrl=SQS_QUEUE_URL,
-                MessageBody=json.dumps(message)
-            )
-            logger.info(f"Sent analysis job to SQS: {job_id}")
-        else:
-            logger.warning("SQS_QUEUE_URL not configured, job created but not queued")
-
-        return AnalyzeResponse(
-            job_id=str(job_id),
-            message="Analysis started. Check job status for results."
+        return JSONResponse(
+            status_code=503,
+            content={"code": "verified_price_snapshot_required",
+                     "detail": "Analysis is unavailable until verified portfolio pricing is connected."},
+            headers={"Cache-Control": "no-store"},
         )
 
     except HTTPException:

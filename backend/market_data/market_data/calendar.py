@@ -18,3 +18,7 @@ def latest_published_session(now: datetime):
 
 def is_session(day):
     return exchange_calendars.get_calendar("XNYS").is_session(day)
+
+
+def sessions(start, end):
+    return [stamp.date() for stamp in exchange_calendars.get_calendar("XNYS").sessions_in_range(start, end)]

@@ -4,7 +4,7 @@ Market data functions using polygon.io for fetching real-time prices.
 
 import logging
 from typing import Set
-from prices import get_share_price
+from prices import get_share_price, require_verified_analysis
 
 logger = logging.getLogger()
 
@@ -18,6 +18,7 @@ def update_instrument_prices(job_id: str, db) -> None:
         job_id: The job ID to identify the user's portfolio
         db: Database instance
     """
+    require_verified_analysis()
     try:
         logger.info(f"Market: Fetching current prices for job {job_id}")
 
@@ -62,6 +63,7 @@ def update_prices_for_symbols(symbols: Set[str], db) -> None:
         symbols: Set of ticker symbols to update
         db: Database instance
     """
+    require_verified_analysis()
     if not symbols:
         logger.info("Market: No symbols to update")
         return

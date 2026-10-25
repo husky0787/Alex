@@ -21,3 +21,12 @@ No verified bar can be presented. A seeded, random or untraceable legacy price c
 
 **Observation version**:
 One distinct set of daily bar values for a source, symbol, trading date and adjustment basis. A later provider correction may produce another version.
+
+**Quarantined bar**:
+A source record excluded from verified prices because it fails a quality check. Its original response and rejection reason remain available to the operator.
+
+**Partial run**:
+An ingestion run that published valid bars but also encountered rejected records or missing expected trading dates.
+
+**Completed through**:
+The last consecutive expected trading date covered by valid bars within a run's requested interval. A later valid bar does not close an earlier gap.
