@@ -593,3 +593,22 @@ When helping students:
 ---
 
 *This guide was created to help AI assistants (like Claude Code) effectively support students through the Alex project. Last updated: October 2025*
+
+
+## Agent skills
+
+### Continuing work
+
+Before resuming implementation or moving to another computer, read `docs/planning/alex-v1.md` for current progress and setup pointers, then verify the selected task's live GitHub state.
+
+### Issue tracker
+
+Track specs and tasks in GitHub Issues for `husky0787/Alex`. Before reading, publishing, or updating tasks, read `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Before classifying an issue or changing its triage state, read `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Use a single-context layout: root `GLOSSARY.md` and `docs/adr/`. Before domain exploration or design changes, read `docs/agents/domain.md`.

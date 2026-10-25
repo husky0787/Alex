@@ -1,0 +1,181 @@
+{
+  "repository": "husky0787/Alex",
+  "approved_on": "2026-10-25",
+  "spec": {
+    "number": 2,
+    "database_id": 6023368923,
+    "url": "https://github.com/husky0787/Alex/issues/2",
+    "title": "Alex 第一版：可信行情、資料工程與 Kubernetes"
+  },
+  "tickets": [
+    {
+      "number": 3,
+      "database_id": 6023369209,
+      "url": "https://github.com/husky0787/Alex/issues/3",
+      "title": "[Alex v1/01] 讓登入與 API 錯誤有正確結果",
+      "local_id": 1,
+      "local_file": "docs/planning/alex-v1-tickets/01-api-error-contract.md",
+      "blocked_by_local_ids": [],
+      "parent_linked": true,
+      "linked_blockers": []
+    },
+    {
+      "number": 4,
+      "database_id": 6023369707,
+      "url": "https://github.com/husky0787/Alex/issues/4",
+      "title": "[Alex v1/02] 一筆真實行情從來源出現在畫面",
+      "local_id": 2,
+      "local_file": "docs/planning/alex-v1-tickets/02-first-verified-price.md",
+      "blocked_by_local_ids": [
+        1
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        3
+      ]
+    },
+    {
+      "number": 5,
+      "database_id": 6023370254,
+      "url": "https://github.com/husky0787/Alex/issues/5",
+      "title": "[Alex v1/03] 行情失敗或品質不合格時可追查與恢復",
+      "local_id": 3,
+      "local_file": "docs/planning/alex-v1-tickets/03-quality-recovery.md",
+      "blocked_by_local_ids": [
+        2
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        4
+      ]
+    },
+    {
+      "number": 6,
+      "database_id": 6023370909,
+      "url": "https://github.com/husky0787/Alex/issues/6",
+      "title": "[Alex v1/04] 20 支標的的 90 天歷史可回補與查詢",
+      "local_id": 4,
+      "local_file": "docs/planning/alex-v1-tickets/04-universe-history.md",
+      "blocked_by_local_ids": [
+        3
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        5
+      ]
+    },
+    {
+      "number": 7,
+      "database_id": 6023371454,
+      "url": "https://github.com/husky0787/Alex/issues/7",
+      "title": "[Alex v1/05] 分析報告使用已驗證的行情",
+      "local_id": 5,
+      "local_file": "docs/planning/alex-v1-tickets/05-analysis-price-provenance.md",
+      "blocked_by_local_ids": [
+        3
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        5
+      ]
+    },
+    {
+      "number": 8,
+      "database_id": 6023372027,
+      "url": "https://github.com/husky0787/Alex/issues/8",
+      "title": "[Alex v1/06] 研究內容可寫入、檢索並用於報告",
+      "local_id": 6,
+      "local_file": "docs/planning/alex-v1-tickets/06-research-chain.md",
+      "blocked_by_local_ids": [
+        5
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        7
+      ]
+    },
+    {
+      "number": 9,
+      "database_id": 6023372608,
+      "url": "https://github.com/husky0787/Alex/issues/9",
+      "title": "[Alex v1/07] API 在本機 Kubernetes 可部署與恢復",
+      "local_id": 7,
+      "local_file": "docs/planning/alex-v1-tickets/07-local-kubernetes-api.md",
+      "blocked_by_local_ids": [
+        1
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        3
+      ]
+    },
+    {
+      "number": 10,
+      "database_id": 6023373107,
+      "url": "https://github.com/husky0787/Alex/issues/10",
+      "title": "[Alex v1/08] Kubernetes 每日排程及手動回補共用 ETL",
+      "local_id": 8,
+      "local_file": "docs/planning/alex-v1-tickets/08-scheduled-etl.md",
+      "blocked_by_local_ids": [
+        4,
+        7
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        6,
+        9
+      ]
+    },
+    {
+      "number": 11,
+      "database_id": 6023373818,
+      "url": "https://github.com/husky0787/Alex/issues/11",
+      "title": "[Alex v1/09] 在限時 EKS 環境跑通應用與 ETL",
+      "local_id": 9,
+      "local_file": "docs/planning/alex-v1-tickets/09-bounded-eks-validation.md",
+      "blocked_by_local_ids": [
+        5,
+        8
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        7,
+        10
+      ]
+    },
+    {
+      "number": 12,
+      "database_id": 6023374411,
+      "url": "https://github.com/husky0787/Alex/issues/12",
+      "title": "[Alex v1/10] 一次版本更新可自動檢查、部署並回滾",
+      "local_id": 10,
+      "local_file": "docs/planning/alex-v1-tickets/10-delivery-rollback.md",
+      "blocked_by_local_ids": [
+        9
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        11
+      ]
+    },
+    {
+      "number": 13,
+      "database_id": 6023374998,
+      "url": "https://github.com/husky0787/Alex/issues/13",
+      "title": "[Alex v1/11] 完成可重現的作品展示與驗收紀錄",
+      "local_id": 11,
+      "local_file": "docs/planning/alex-v1-tickets/11-release-evidence.md",
+      "blocked_by_local_ids": [
+        6,
+        10
+      ],
+      "parent_linked": true,
+      "linked_blockers": [
+        8,
+        12
+      ]
+    }
+  ],
+  "relationships_verified": true,
+  "verified_on": "2026-10-25"
+}
