@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import sys
+from uuid import UUID
 
 import boto3
 from dotenv import load_dotenv
@@ -25,6 +26,15 @@ def main(argv=None):
     sub.add_parser("migrate", help="Create additive market-data tables in MARKET_DATABASE_URL")
     show = sub.add_parser("latest", help="Read a verified price, never legacy current_price")
     show.add_argument("--symbol", default="AAPL")
+    listing = sub.add_parser("runs", help="List up to 100 recent runs for operator diagnosis")
+    listing.add_argument("--status", choices=["running", "succeeded", "partial", "failed", "unavailable"])
+    inspect = sub.add_parser("inspect", help="Show run, attempts, quarantine and published observations")
+    inspect.add_argument("run_id", type=UUID)
+    for name in ("resume", "retry"):
+        recovery = sub.add_parser(name, help="Resume an interrupted run" if name == "resume" else "Create a linked retry of a failed/partial run")
+        recovery.add_argument("run_id", type=UUID)
+        recovery.add_argument("--raw-dir", type=Path, default=Path(".local/market-data"))
+        recovery.add_argument("--raw-bucket", help="Same private bucket as the original run")
     run = sub.add_parser("ingest", help="Ingest one symbol and an inclusive date range")
     run.add_argument("--symbol", default="AAPL")
     run.add_argument("--from", dest="start", type=date.fromisoformat, required=True)
@@ -52,17 +62,26 @@ def main(argv=None):
                 from .universe import require_symbol
                 print(json.dumps(repository.latest(require_symbol(args.symbol), as_of=now)))
                 return 0
+            if args.command == "runs":
+                print(json.dumps(repository.runs(status=args.status)))
+                return 0
+            if args.command == "inspect":
+                print(json.dumps(repository.report(str(args.run_id))))
+                return 0
             key = os.getenv("MASSIVE_API_KEY") or os.getenv("POLYGON_API_KEY")
-            if not key:
+            if not key and args.command != "resume":
                 parser.error("Set POLYGON_API_KEY or MASSIVE_API_KEY locally; never paste it into chat or commit it")
             store = (S3RawStore(args.raw_bucket, boto3.client("s3"))
                      if getattr(args, "raw_bucket", None) else LocalRawStore(args.raw_dir))
-            symbol = "AAPL" if args.command == "smoke" else args.symbol
-            start = now.astimezone(EASTERN).date() - timedelta(days=89) if args.command == "smoke" else args.start
-            end = latest_published_session(now) if args.command == "smoke" else args.end
             with httpx.Client() as client:
-                pipeline = DailyPricePipeline(MassiveDailyProvider(key, client), store, repository)
-                result = pipeline.run(symbol, start, end)
+                pipeline = DailyPricePipeline(MassiveDailyProvider(key, client) if key else None, store, repository)
+                if args.command in ("resume", "retry"):
+                    result = getattr(pipeline, args.command)(str(args.run_id))
+                else:
+                    symbol = "AAPL" if args.command == "smoke" else args.symbol
+                    start = now.astimezone(EASTERN).date() - timedelta(days=89) if args.command == "smoke" else args.start
+                    end = latest_published_session(now) if args.command == "smoke" else args.end
+                    result = pipeline.run(symbol, start, end)
             if args.command == "smoke":
                 from .evidence import smoke_evidence
                 evidence = smoke_evidence(repository, result, start, end, now)
