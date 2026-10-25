@@ -1,0 +1,82 @@
+"""Explicit operator commands; importing this package never connects to a service."""
+import argparse
+from datetime import date, datetime, timedelta, timezone
+import json
+import os
+from pathlib import Path
+import sys
+
+import boto3
+from dotenv import load_dotenv
+import httpx
+import psycopg
+
+from .calendar import EASTERN, latest_published_session
+from .pipeline import DailyPricePipeline
+from .provider import MassiveDailyProvider
+from .repository import PriceRepository
+from .storage import LocalRawStore, S3RawStore
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Verified daily market data; no paid plan is selected automatically.")
+    parser.add_argument("--env-file", type=Path, help="Explicit local .env file; existing environment variables win")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("migrate", help="Create additive market-data tables in MARKET_DATABASE_URL")
+    show = sub.add_parser("latest", help="Read a verified price, never legacy current_price")
+    show.add_argument("--symbol", default="AAPL")
+    run = sub.add_parser("ingest", help="Ingest one symbol and an inclusive date range")
+    run.add_argument("--symbol", default="AAPL")
+    run.add_argument("--from", dest="start", type=date.fromisoformat, required=True)
+    run.add_argument("--to", dest="end", type=date.fromisoformat, required=True)
+    run.add_argument("--raw-dir", type=Path, default=Path(".local/market-data"))
+    run.add_argument("--raw-bucket", help="Existing private S3 data bucket; leave unset for local files")
+    smoke = sub.add_parser("smoke", help="Verify AAPL's latest and 90-calendar-day coverage with one live provider request")
+    smoke.add_argument("--raw-dir", type=Path, default=Path(".local/market-data"))
+    smoke.add_argument("--evidence", type=Path, default=Path(".local/market-data/smoke.json"))
+    args = parser.parse_args(argv)
+    if args.env_file:
+        load_dotenv(args.env_file, override=False)
+    dsn = os.getenv("MARKET_DATABASE_URL")
+    if not dsn:
+        parser.error("Set MARKET_DATABASE_URL to the intended PostgreSQL database")
+    now = datetime.now(timezone.utc)
+    try:
+        with psycopg.connect(dsn, autocommit=True, connect_timeout=5) as connection:
+            repository = PriceRepository(connection)
+            if args.command == "migrate":
+                repository.migrate()
+                print(json.dumps({"status": "migrated"}))
+                return 0
+            if args.command == "latest":
+                from .universe import require_symbol
+                print(json.dumps(repository.latest(require_symbol(args.symbol), as_of=now)))
+                return 0
+            key = os.getenv("MASSIVE_API_KEY") or os.getenv("POLYGON_API_KEY")
+            if not key:
+                parser.error("Set POLYGON_API_KEY or MASSIVE_API_KEY locally; never paste it into chat or commit it")
+            store = (S3RawStore(args.raw_bucket, boto3.client("s3"))
+                     if getattr(args, "raw_bucket", None) else LocalRawStore(args.raw_dir))
+            symbol = "AAPL" if args.command == "smoke" else args.symbol
+            start = now.astimezone(EASTERN).date() - timedelta(days=89) if args.command == "smoke" else args.start
+            end = latest_published_session(now) if args.command == "smoke" else args.end
+            with httpx.Client() as client:
+                pipeline = DailyPricePipeline(MassiveDailyProvider(key, client), store, repository)
+                result = pipeline.run(symbol, start, end)
+            if args.command == "smoke":
+                from .evidence import smoke_evidence
+                evidence = smoke_evidence(repository, result, start, end, now)
+                args.evidence.parent.mkdir(parents=True, exist_ok=True)
+                args.evidence.write_text(json.dumps(evidence, indent=2), encoding="utf-8")
+                print(json.dumps(evidence))
+                return 0 if evidence["status"] == "passed" else 1
+            print(json.dumps(result))
+            return 0 if result["status"] == "succeeded" else 1
+    except (psycopg.Error, OSError, ValueError):
+        # Do not print DSNs, API keys, request headers, or upstream response text.
+        print("Market-data operation failed; check local configuration and run records.", file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

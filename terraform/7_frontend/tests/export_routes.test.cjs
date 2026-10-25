@@ -10,7 +10,7 @@ vm.runInContext(fs.readFileSync(path.join(__dirname, '../static_routes.js'), 'ut
 const exported = path.resolve(__dirname, '../../../frontend/out');
 
 test('all public page routes resolve to actual production-exported HTML', () => {
-    for (const uri of ['/', '/dashboard', '/accounts', '/analysis', '/advisor-team',
+    for (const uri of ['/', '/dashboard', '/accounts', '/analysis', '/advisor-team', '/market-data',
         '/accounts/123e4567-e89b-12d3-a456-426614174000']) {
         const result = context.handler({ request: { uri, method: 'GET' } });
         const file = path.join(exported, decodeURIComponent(result.uri.slice(1)));

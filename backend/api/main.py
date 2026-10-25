@@ -7,7 +7,7 @@ import os
 import json
 import logging
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 import uuid
 
@@ -16,9 +16,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 import boto3
+import psycopg
 from mangum import Mangum
 from dotenv import load_dotenv
 from fastapi_clerk_auth import ClerkConfig, ClerkHTTPBearer, HTTPAuthorizationCredentials
+from market_data.repository import PriceRepository
+from market_data.universe import require_symbol
 
 from src import Database
 from src.schemas import (
@@ -142,6 +145,25 @@ class AnalyzeResponse(BaseModel):
     message: str
 
 # API Routes
+
+@app.get("/api/market-data/{symbol}")
+def get_verified_market_price(symbol: str, clerk_user_id: str = Depends(get_current_user_id)):
+    """Return the latest traceable daily bar; never use legacy instrument prices."""
+    try:
+        symbol = require_symbol(symbol)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Unsupported symbol") from None
+    database_url = os.getenv("MARKET_DATABASE_URL")
+    if not database_url:
+        raise HTTPException(status_code=503, detail="Market data is not configured")
+    try:
+        with psycopg.connect(database_url, autocommit=True, connect_timeout=5) as connection:
+            result = PriceRepository(connection).latest(symbol, as_of=datetime.now(timezone.utc))
+        return JSONResponse(content=result, headers={"Cache-Control": "no-store"})
+    except psycopg.Error:
+        # Connection strings and database error text may contain credentials.
+        logger.error("Market data database unavailable")
+        raise HTTPException(status_code=503, detail="Market data temporarily unavailable") from None
 
 @app.get("/health")
 async def health_check():

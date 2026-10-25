@@ -66,17 +66,16 @@ def main():
         else:
             print(f"Warning: Database package not found at {database_src}")
 
-        # Create requirements.txt from pyproject.toml
+        # The API reads verified daily observations through this workspace package.
+        shutil.copytree(backend_dir / "market_data" / "market_data", package_dir / "market_data",
+                        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+
+        # Export locked external dependencies; workspace code is copied above.
         requirements_file = package_dir / "requirements.txt"
-        with open(requirements_file, "w") as f:
-            # Core dependencies
-            f.write("fastapi>=0.116.0\n")
-            f.write("uvicorn>=0.35.0\n")
-            f.write("mangum>=0.19.0\n")
-            f.write("boto3>=1.26.0\n")
-            f.write("fastapi-clerk-auth>=0.0.7\n")
-            f.write("pydantic>=2.0.0\n")
-            f.write("python-dotenv>=1.0.0\n")
+        requirements_file.write_text(run_command([
+            "uv", "export", "--project", str(backend_dir), "--package", "api",
+            "--no-dev", "--no-emit-workspace", "--locked", "--format", "requirements-txt",
+        ], cwd=backend_dir), encoding="utf-8")
 
         # Create Dockerfile
         dockerfile_content = """

@@ -234,3 +234,6 @@ backend/**/*_lambda.zip
 .idea
 .terraform.lock.hcl
 /terraform/4_researcher/researcher.auto.tfvars.json
+
+# Local market database, private provider responses, and smoke-test output
+/.local/
