@@ -1,6 +1,6 @@
 # Alex 第一版規劃
 
-更新日期：2026-10-25。狀態：任務 1–3 已合併至 `main`，GitHub #3–#5 已關閉；下一個依規劃順序執行的是任務 4（GitHub #6）。規格 #2 與其餘任務仍開啟。
+更新日期：2026-10-27。狀態：任務 1–3 已合併至 `main`，GitHub #3–#5 已關閉；任務 4（GitHub #6）已在 `feat/task-04-universe-history` 實作並通過本機及真實來源驗證，等待 PR 審查與合併。規格 #2 與其餘任務仍開啟。
 
 規格：[alex-v1-spec.md](alex-v1-spec.md)。任務：[任務清單](alex-v1-tickets/README.md)。
 
@@ -13,6 +13,8 @@
 | 3：品質隔離與失敗恢復 | [#16](https://github.com/husky0787/Alex/pull/16) | [測試與遷移驗證](../verification/task-03-quality-recovery.md) |
 
 任務 3 合併 commit：`49e3a4e36b260ed7bb1e6ccf9a1c8591f2a58bc9`。上述結果以本機測試為主；新管線尚未部署 AWS，Kubernetes 仍待實作。
+
+任務 4 新增 20 支標的選擇、90 曆日歷史與可恢復回補；真實來源驗證 20 × 62 個已發布交易日，重跑全部跳過。[Draft PR #17](https://github.com/husky0787/Alex/pull/17)；[驗證紀錄](../verification/task-04-universe-history.md)。換機接續此任務須 checkout `feat/task-04-universe-history`；合併後再從最新 `main` 開始任務 5（#7）。
 
 目前 `/api/analyze` 明確回傳 `503`，Planner 亦拒絕舊分析路徑，避免使用無來源價格。任務 5（#7）須接上不可變行情快照後恢復分析；不要直接移除保護。行情頁可用。設計見 [ADR 0002](../adr/0002-market-quality-and-recovery.md)。
 
@@ -69,7 +71,7 @@ AWS 官方 EKS 標準支援價格為每叢集每小時 US$0.10：
 
 ## 執行時需核對
 
-- 按已確認的規格、驗收條件和 GitHub 依賴執行；下一步為任務 4（#6），從更新後的 `main` 建立新分支。#7 與 #9 的前置依賴亦已完成，可在另行安排時開始。
+- 按已確認的規格、驗收條件和 GitHub 依賴執行；先完成任務 4 的 PR 審查與合併，再從更新後的 `main` 建立任務 5 分支。#7 與 #9 的前置依賴亦已完成。
 - 核對可用的行情供應商方案與帳號能力，再確定排程和回補方式。
 - 實作規格中已確認的缺漏、過期及研究不可用行為，留下驗證證據。
 

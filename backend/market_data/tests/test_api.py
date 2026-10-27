@@ -78,3 +78,26 @@ class MarketAPITests(unittest.TestCase):
         self.assertEqual(response.json()["price"]["trade_date"], "2026-10-23")
         self.assertNotIn("raw_location", response.text)
         self.assertEqual(self.client.get("/api/market-data/NOTSUPPORTED", headers=headers).status_code, 404)
+
+    def test_universe_and_history_require_auth_and_return_bounded_dated_gaps(self):
+        from datetime import date
+        from market_data.universe import SYMBOLS
+        for url in ("/api/market-data/universe", "/api/market-data/AAPL/history"):
+            self.assertEqual(self.client.get(url).status_code, 403)
+        headers = {"Authorization": f"Bearer {self.token}"}
+        universe = self.client.get("/api/market-data/universe", headers=headers)
+        self.assertEqual(universe.status_code, 200, universe.text)
+        self.assertEqual([item["symbol"] for item in universe.json()["symbols"]], list(SYMBOLS))
+        self.assertEqual(universe.json()["source"], "massive")
+        pipeline, _ = self.database.pipeline()
+        pipeline.run("AAPL", date(2026, 10, 23), date(2026, 10, 23))
+        history = self.client.get("/api/market-data/AAPL/history?from_date=2026-10-22&to_date=2026-10-24", headers=headers)
+        self.assertEqual(history.status_code, 200, history.text)
+        self.assertEqual([row["status"] for row in history.json()["days"]], ["missing", "available", "weekend"])
+        self.assertEqual(history.json()["days"][1]["price"]["close"], "105")
+        self.assertEqual(history.headers["cache-control"], "no-store")
+        self.assertNotIn("raw_key", history.text)
+        self.assertNotIn("raw_location", history.text)
+        for query in ("from_date=2020-01-01", "to_date=2026-12-01", "from_date=invalid"):
+            self.assertEqual(self.client.get(f"/api/market-data/AAPL/history?{query}", headers=headers).status_code, 422)
+        self.assertEqual(self.client.get("/api/market-data/INVALID/history", headers=headers).status_code, 404)

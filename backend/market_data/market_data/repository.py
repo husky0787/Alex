@@ -1,5 +1,5 @@
 """PostgreSQL history and run records; no fallback to instruments.current_price."""
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from contextlib import contextmanager
 from decimal import Decimal
 from importlib.resources import files
@@ -7,7 +7,8 @@ from uuid import UUID, uuid4
 
 from psycopg.rows import dict_row
 
-from .calendar import latest_published_session
+from .calendar import history_window, is_session, latest_published_session
+from .universe import require_symbol
 
 
 def serialize(row):
@@ -141,6 +142,15 @@ class PriceRepository:
         return {"run": run, "attempts": self.attempts(run_id), "quarantine": self.quarantine(run_id),
                 "observations": self.observations_for_run(run_id)}
 
+    def interrupted_run(self, symbol, start, end):
+        with self.connection.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(
+                """SELECT * FROM market_runs WHERE source='massive' AND symbol=%s AND adjusted=true
+                   AND status='running' AND from_date <= %s AND to_date >= %s
+                   ORDER BY sequence DESC LIMIT 1""", (symbol, end, start),
+            )
+            return serialize(cursor.fetchone())
+
     def quarantine(self, run_id):
         with self.connection.cursor(row_factory=dict_row) as cursor:
             cursor.execute("SELECT * FROM market_quarantine WHERE run_id=%s ORDER BY row_index", (run_id,))
@@ -179,4 +189,49 @@ class PriceRepository:
             "status": "unavailable" if row is None else "fresh" if row["trade_date"] == expected else "stale",
             "expected_trade_date": expected.isoformat(),
             "price": serialize(row),
+        }
+
+    def history(self, symbol, start=None, end=None, *, as_of):
+        symbol = require_symbol(symbol)
+        start, end = history_window(as_of, start, end)
+        expected = latest_published_session(as_of)
+        with self.connection.cursor(row_factory=dict_row) as cursor:
+            cursor.execute(
+                """SELECT DISTINCT ON (p.trade_date) p.*, o.run_id,
+                          o.observed_at AS fetched_at, r.raw_sha256
+                   FROM daily_prices p JOIN market_observations o ON o.price_id=p.id
+                   JOIN market_runs r ON r.id=o.run_id
+                   WHERE p.symbol=%s AND p.source='massive' AND p.adjusted=true
+                     AND p.trade_date BETWEEN %s AND %s AND p.trade_date <= %s
+                     AND r.status IN ('succeeded', 'partial')
+                   ORDER BY p.trade_date, o.observed_at DESC, r.sequence DESC""",
+                (symbol, start, end, expected),
+            )
+            prices = {row["trade_date"]: serialize(row) for row in cursor.fetchall()}
+        days, missing, expected_count = [], [], 0
+        for offset in range((end - start).days + 1):
+            day = start + timedelta(days=offset)
+            if day.weekday() >= 5:
+                status = "weekend"
+            elif not is_session(day):
+                status = "holiday"
+            elif day > expected:
+                status = "not_published"
+            else:
+                expected_count += 1
+                status = "available" if day in prices else "missing"
+                if status == "missing":
+                    missing.append(day.isoformat())
+            days.append({"date": day.isoformat(), "status": status,
+                         "price": prices.get(day) if status == "available" else None})
+        available_count = expected_count - len(missing)
+        return {
+            "symbol": symbol, "source": "massive", "currency": "USD", "adjusted": True,
+            "timezone": "America/New_York", "from_date": start.isoformat(), "to_date": end.isoformat(),
+            "expected_trade_date": expected.isoformat(), "as_of": as_of.isoformat(),
+            "expected_count": expected_count, "available_count": available_count,
+            "missing_dates": missing,
+            "coverage": "not_due" if expected_count == 0 else "complete" if not missing else
+                        "partial" if available_count else "unavailable",
+            "days": days,
         }
