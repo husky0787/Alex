@@ -2,6 +2,7 @@
 from datetime import date, datetime, timezone
 
 from .calendar import history_window
+from .pipeline import RunBlocked
 from .universe import SYMBOLS, require_symbol
 
 
@@ -27,10 +28,11 @@ class HistoryBackfill:
                     action = "resumed"
                     try:
                         run = self.pipeline.resume(interrupted["id"])
-                    except ValueError:
-                        # An active owner or a future retry time remains pending.
-                        # Never start a competing recovery/fresh run in this pass.
-                        error = "recovery_pending"
+                    except RunBlocked as blocked:
+                        # Keep the interrupted identity and actionable cause;
+                        # unrelated ValueErrors must not become pending work.
+                        run = self.repository.get_run(blocked.run_id)
+                        error = blocked.code
                     history = self.repository.history(symbol, start, end, as_of=now)
                 if history["missing_dates"] and not error and (not run or run["status"] == "succeeded"):
                     action = "resumed_and_fetched" if run else "fetched"
@@ -46,6 +48,8 @@ class HistoryBackfill:
             results.append(row)
             if on_progress:
                 on_progress(row)
-        return {"status": "succeeded" if all(row["complete"] for row in results) else "partial",
+        succeeded = all(row["complete"] and not row["error_code"]
+                        and row["run_status"] in (None, "succeeded") for row in results)
+        return {"status": "succeeded" if succeeded else "partial",
                 "from_date": start.isoformat(), "to_date": end.isoformat(), "as_of": now.isoformat(),
                 "source": "massive", "symbols": results}

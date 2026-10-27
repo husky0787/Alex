@@ -116,6 +116,137 @@ class HistoryTests(unittest.TestCase):
                 else:
                     self.assertEqual(result["symbols"][0]["action"], "skipped")
 
+    def test_cli_interrupted_backfill_reports_missing_key_and_original_run(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        import json, os
+        from unittest.mock import patch
+        from psycopg.conninfo import make_conninfo
+        from market_data.__main__ import main
+        day = date(2026, 10, 23)
+        run_id = self.repository.start_run("AAPL", day, day, self.fixture.now)
+        environment = {"MARKET_DATABASE_URL": make_conninfo(os.environ["MARKET_TEST_DATABASE_URL"],
+                                                           options=f"-csearch_path={self.fixture.schema}")}
+        with patch.dict(os.environ, environment, clear=True), \
+             patch("market_data.__main__.datetime") as now, redirect_stdout(StringIO()) as output:
+            now.now.return_value = self.fixture.now
+            exit_code = main(["backfill", "--symbols", "AAPL", "--from", str(day), "--to", str(day),
+                              "--raw-dir", self.fixture.directory.name])
+        result = json.loads(output.getvalue())
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(result["symbols"][0]["error_code"], "provider_key_required")
+        self.assertEqual(result["symbols"][0]["run_id"], run_id)
+        self.assertEqual(result["symbols"][0]["run_status"], "running")
+        self.assertEqual(self.repository.attempts(run_id), [])
+        # Supplying a key resumes the same run without losing its identity.
+        from market_data.backfill import HistoryBackfill
+        pipeline, _ = self.fixture.pipeline()
+        recovered = HistoryBackfill(pipeline, self.repository, clock=lambda: self.fixture.now).run(
+            day, day, symbols=("AAPL",))
+        self.assertEqual(recovered["status"], "succeeded")
+        self.assertEqual(recovered["symbols"][0]["run_id"], run_id)
+
+    def test_cli_complete_coverage_with_rejected_data_is_partial_and_exits_nonzero(self):
+        from contextlib import redirect_stdout
+        from io import StringIO
+        import httpx
+        import json, os
+        from unittest.mock import patch
+        from psycopg.conninfo import make_conninfo
+        from market_data.__main__ import main
+        payload = {**self.fixture.payload, "resultsCount": 2,
+                   "results": [self.fixture.payload["results"][0], {"t": 0}]}
+        environment = {"MARKET_DATABASE_URL": make_conninfo(os.environ["MARKET_TEST_DATABASE_URL"],
+                                                           options=f"-csearch_path={self.fixture.schema}"),
+                       "MASSIVE_API_KEY": "test-key"}
+        client = httpx.Client(transport=httpx.MockTransport(lambda request: httpx.Response(200, json=payload)))
+        self.addCleanup(client.close)
+        with patch.dict(os.environ, environment, clear=True), \
+             patch("market_data.__main__.httpx.Client", return_value=client), \
+             patch("market_data.__main__.datetime") as now, redirect_stdout(StringIO()) as output:
+            now.now.return_value = self.fixture.now
+            exit_code = main(["backfill", "--symbols", "AAPL", "--from", "2026-10-23", "--to", "2026-10-23",
+                              "--raw-dir", self.fixture.directory.name])
+        result = json.loads(output.getvalue())
+        row = result["symbols"][0]
+        self.assertEqual(row["coverage"], "complete")
+        self.assertTrue(row["complete"])
+        self.assertEqual(row["run_status"], "partial")
+        self.assertEqual(row["error_code"], "quality_rejected")
+        self.assertEqual(result["status"], "partial")
+        self.assertEqual(exit_code, 1)
+        self.assertEqual(len(self.repository.report(row["run_id"])["quarantine"]), 1)
+
+    def test_blocked_recovery_keeps_run_identity_for_lock_and_future_retry(self):
+        import os
+        import psycopg
+        from psycopg.conninfo import make_conninfo
+        from market_data.backfill import HistoryBackfill
+        from market_data.repository import PriceRepository
+        day = date(2026, 10, 23)
+        run_id = self.repository.start_run("AAPL", day, day, self.fixture.now)
+        pipeline, _ = self.fixture.pipeline()
+        batch = HistoryBackfill(pipeline, self.repository, clock=lambda: self.fixture.now)
+        dsn = make_conninfo(os.environ["MARKET_TEST_DATABASE_URL"], options=f"-csearch_path={self.fixture.schema}")
+        with psycopg.connect(dsn, autocommit=True) as owner:
+            with PriceRepository(owner).symbol_lock("AAPL") as acquired:
+                self.assertTrue(acquired)
+                locked = batch.run(day, day, symbols=("AAPL",))
+        self.repository.begin_attempt(run_id, 1, self.fixture.now)
+        self.repository.record_attempt(run_id, 1, self.fixture.now, status=429,
+                                       error_code="provider_http_429",
+                                       retry_at=self.fixture.now + timedelta(seconds=120))
+        waiting = batch.run(day, day, symbols=("AAPL",))
+        for result in (locked, waiting):
+            self.assertEqual(result["status"], "partial")
+            self.assertEqual(result["symbols"][0]["error_code"], "recovery_pending")
+            self.assertEqual(result["symbols"][0]["run_id"], run_id)
+            self.assertEqual(result["symbols"][0]["run_status"], "running")
+        self.assertEqual(len(self.repository.attempts(run_id)), 1)
+
+    def test_unexpected_recovery_value_error_is_not_hidden_as_pending(self):
+        import httpx
+        from market_data.backfill import HistoryBackfill
+        from market_data.pipeline import DailyPricePipeline
+        from market_data.provider import MassiveDailyProvider
+        day = date(2026, 10, 23)
+        run_id = self.repository.start_run("AAPL", day, day, self.fixture.now)
+        def respond(request):
+            raise ValueError("Unexpected transport configuration error")
+        with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+            pipeline = DailyPricePipeline(MassiveDailyProvider("test-key", client), self.fixture.raw,
+                                          self.repository, clock=lambda: self.fixture.now)
+            with self.assertRaisesRegex(ValueError, "Unexpected transport configuration error"):
+                HistoryBackfill(pipeline, self.repository, clock=lambda: self.fixture.now).run(
+                    day, day, symbols=("AAPL",))
+        self.assertEqual(self.repository.get_run(run_id)["status"], "running")
+
+    def test_resumed_raw_with_complete_coverage_and_quality_failure_stays_partial(self):
+        import hashlib, json
+        from market_data.backfill import HistoryBackfill
+        from market_data.pipeline import DailyPricePipeline
+        day = date(2026, 10, 23)
+        body = json.dumps({**self.fixture.payload, "resultsCount": 2,
+                           "results": [self.fixture.payload["results"][0], {"t": 0}]}).encode()
+        run_id = self.repository.start_run("AAPL", day, day, self.fixture.now)
+        self.repository.begin_attempt(run_id, 1, self.fixture.now)
+        digest = hashlib.sha256(body).hexdigest()
+        key = f"raw/massive/AAPL/{run_id}/1/{digest}.json"
+        location = self.fixture.raw.save(key, body)
+        self.repository.record_attempt(run_id, 1, self.fixture.now, status=200, key=key,
+                                       digest=digest, location=location)
+        pipeline = DailyPricePipeline(None, self.fixture.raw, self.repository, clock=lambda: self.fixture.now)
+        result = HistoryBackfill(pipeline, self.repository, clock=lambda: self.fixture.now).run(
+            day, day, symbols=("AAPL",))
+        self.assertEqual(result["status"], "partial")
+        row = result["symbols"][0]
+        self.assertEqual(row["action"], "resumed")
+        self.assertEqual(row["coverage"], "complete")
+        self.assertEqual(row["run_status"], "partial")
+        self.assertEqual(row["error_code"], "quality_rejected")
+        self.assertEqual(row["run_id"], run_id)
+
     def test_backfill_fills_an_earlier_gap_even_when_latest_price_is_fresh(self):
         import httpx
         from market_data.backfill import HistoryBackfill

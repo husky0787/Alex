@@ -36,6 +36,12 @@ uv run --project backend --locked --package api backend/market_data/tests/run_in
 
 The live command requests a new rolling window for all 20 symbols; it consumes provider quota. It creates an isolated loopback PostgreSQL cluster, retains private evidence in `.local/market-data/task-04/`, and stops its cluster afterward. Regular regression tests use controlled external HTTP responses, not provider requests.
 
+## Review follow-up
+
+Two additional review cases were reproduced as failing tests and fixed: missing-key recovery previously lost the actionable reason and run ID; full date coverage previously hid a `partial / quality_rejected` execution behind batch success. Recovery now catches only explicit run-blocking conditions and retains their identity/code. Batch success requires both complete coverage and successful attempted runs, so a quality failure returns `partial` and CLI exit code 1.
+
+The expanded suite passes **45 PostgreSQL/pipeline/API tests**, including CLI missing-key recovery, complete-but-rejected data, actual competing PostgreSQL locks, future retry times, unexpected transport `ValueError` propagation and saved-raw quality failure. Existing **11 API contract tests** also pass. No new provider calls were needed for these fixes; original live evidence above remains unchanged.
+
 ## Operational boundaries
 
 Coverage is derived from all persisted expected dates, not a maximum-date cursor. Restart first resumes an overlapping interrupted run and then fills remaining gaps after successful recovery. Covered dates are skipped; refreshing provider corrections requires explicit `ingest`. History is the latest verified projection, not a point-in-time report snapshot. See [ADR 0003](../adr/0003-history-coverage-and-backfill.md).

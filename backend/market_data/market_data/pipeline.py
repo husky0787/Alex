@@ -12,6 +12,15 @@ from .calendar import latest_published_session, sessions
 from .universe import require_symbol
 
 
+class RunBlocked(ValueError):
+    """An actionable precondition blocks a run without changing its evidence."""
+
+    def __init__(self, run_id, code, message):
+        super().__init__(message)
+        self.run_id = run_id
+        self.code = code
+
+
 class DailyPricePipeline:
     def __init__(self, provider, raw_store, repository, *, clock=None, sleep=None):
         self.provider = provider
@@ -51,7 +60,7 @@ class DailyPricePipeline:
             return run
         with self.repository.symbol_lock(run["symbol"]) as acquired:
             if not acquired:
-                raise ValueError("Market run is still active; retry recovery after it stops")
+                raise RunBlocked(run_id, "recovery_pending", "Market run is still active; retry recovery after it stops")
             run = self.repository.get_run(run_id)
             if run["status"] != "running":
                 return run
@@ -72,7 +81,7 @@ class DailyPricePipeline:
                     return self.repository.finish(run_id, "failed", self.clock(), error_code=last["error_code"])
                 delay = max(0, (datetime.fromisoformat(last["retry_at"]) - self.clock()).total_seconds())
                 if delay > 60:
-                    raise ValueError("Retry time is still in the future; resume later")
+                    raise RunBlocked(run_id, "recovery_pending", "Retry time is still in the future; resume later")
                 if delay:
                     self.sleep(delay)
             return self._fetch(run_id, run["symbol"], start, end)
@@ -80,7 +89,7 @@ class DailyPricePipeline:
     def _fetch(self, run_id, symbol, start, end):
         for number in range(len(self.repository.attempts(run_id)) + 1, 4):
             if self.provider is None:
-                raise ValueError("A provider API key is needed to resume fetching")
+                raise RunBlocked(run_id, "provider_key_required", "A provider API key is needed to resume fetching")
             self.repository.begin_attempt(run_id, number, self.clock())
             response = None
             try:
