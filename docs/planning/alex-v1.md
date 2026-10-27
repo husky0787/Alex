@@ -18,7 +18,7 @@
 
 任務 5 已新增建立工作時固定的持倉與行情快照。設定完成時 `/api/analyze` 可建立使用可信價格的分析工作；缺價或不支援的必要標的會回傳 422，未設定服務仍回傳 503。四個分析 agents 均讀取同一份快照，舊工作無快照仍會被拒絕。見 [ADR 0004](../adr/0004-analysis-price-snapshots.md) 與 [驗證紀錄](../verification/task-05-analysis-price-snapshots.md)。新程式尚未部署 AWS。
 
-換機接續任務 5 請 checkout `feat/task-05-analysis-price-provenance`；合併後從最新 `main` 建立任務 6（#8）分支，核對研究鏈與檢索結果。
+任務 5 已推送至 [Draft PR #18](https://github.com/husky0787/Alex/pull/18)。換機接續請 checkout `feat/task-05-analysis-price-provenance`；合併後從最新 `main` 建立任務 6（#8）分支，核對研究鏈與檢索結果。
 
 換機時 clone／更新本儲存庫，安裝 Git、GitHub CLI、Python 3.12、uv、Node.js 與 PostgreSQL 工具，依 [行情模組 README](../../backend/market_data/README.md) 安裝相依套件、設定 `PG_BIN`、遷移及執行測試。文件中的 `D:/learn/...` 工具路徑只適用原電腦，請使用新電腦的安裝位置。完整應用另外需要既有 Clerk／AWS 設定。
 
