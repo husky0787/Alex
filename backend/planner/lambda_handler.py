@@ -22,9 +22,7 @@ except ImportError:
 from src import Database
 
 from templates import ORCHESTRATOR_INSTRUCTIONS
-from agent import create_agent, handle_missing_instruments, load_portfolio_summary
-from market import update_instrument_prices
-from prices import require_verified_analysis
+from agent import create_agent, load_portfolio_summary
 from observability import observe
 
 logger = logging.getLogger()
@@ -45,17 +43,8 @@ async def run_orchestrator(job_id: str) -> None:
         # Update job status to running
         db.jobs.update_status(job_id, 'running')
 
-        # Also protect direct invocation and messages queued before task 3.
-        require_verified_analysis()
-        
-        # Handle missing instruments first (non-agent pre-processing)
-        await asyncio.to_thread(handle_missing_instruments, job_id, db)
-
-        # Update instrument prices after tagging
-        logger.info("Planner: Updating instrument prices from market data")
-        await asyncio.to_thread(update_instrument_prices, job_id, db)
-
-        # Load portfolio summary (just statistics, not full data)
+        # Validate the persisted snapshot even for direct/previously queued jobs.
+        # Never refresh prices or edit shared instruments during analysis.
         portfolio_summary = await asyncio.to_thread(load_portfolio_summary, job_id, db)
         
         # Create agent with tools and context

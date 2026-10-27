@@ -1,6 +1,6 @@
 # Verified daily market data
 
-This package adds a traceable daily-price path alongside Alex's account services. The market page supports 20 US stocks/ETFs, latest daily prices and a 90-calendar-day history. Seeded `instruments.current_price` is not a verified quote. Task 3 removes the random fallback and temporarily blocks new analysis; task 5 will connect immutable portfolio price snapshots and restore analysis using verified prices.
+This package adds a traceable daily-price path alongside Alex's account services. The market page supports 20 US stocks/ETFs, latest daily prices and a 90-calendar-day history. Seeded `instruments.current_price` is not a verified quote. Analysis freezes owned holdings and verified prices in the job before queueing; all four analysis agents use that saved snapshot.
 
 ```text
 Massive daily REST bars → raw response → validate → PostgreSQL history + run record
@@ -126,7 +126,11 @@ uv run --project backend --locked --package api -m market_data --env-file .env r
 
 After a database outage or ambiguous commit, reconnect and inspect/resume the original run. A successful committed run is already complete; never assume an error means nothing committed. A crash between object save and pointer commit can leave an orphan object; recovery does not guess its contents and may refetch within its remaining budget. Unrecoverable/mismatched raw evidence fails clearly. Fix the external fault, then explicitly retry. Migration is tested against both the original task-2 schema and repeat invocation.
 
-Until task 5 supplies price snapshots, `/api/analyze` returns an authenticated JSON `503` with code `verified_price_snapshot_required` before creating or queueing a job. Planner also fails existing queued/direct work before Tagger/LLM calls. The `/market-data` page remains usable; this task does not make legacy reports or seed prices verified.
+`/api/analyze` requires `MARKET_DATABASE_URL`, the existing user/job database configuration and `SQS_QUEUE_URL`; absent configuration still returns authenticated JSON `503`. Required holdings without verified prices or outside the fixed universe return `422 / verified_prices_unavailable` with `affected_symbols` before job creation. Stale prices are accepted with actual/expected dates in the saved snapshot, prompts, deterministic report text and UI warning. Zero-quantity positions need no quote; cash-only portfolios have no market-price rows.
+
+The API stores `request_payload.price_snapshot` once, containing exact quote values and version/run/raw-digest provenance, owned quantities, cash and preferences. Later source corrections or holdings edits do not update old snapshots. All agents load that server-created input; event-supplied portfolio overrides are ignored. Snapshot-less legacy jobs remain blocked before models and historical reports are labelled as lacking a verified snapshot. The digest detects accidental changes, not a malicious database writer. See [ADR 0004](../../docs/adr/0004-analysis-price-snapshots.md) and [task-5 verification](../../docs/verification/task-05-analysis-price-snapshots.md).
+
+Deploy the API and all four rebuilt agent packages together in the later deployment stage. The shared database package now includes the snapshot reader, so agents need no direct market-database connection. Existing account/dashboard price displays are separate from the verified analysis path. No new schema migration is needed; job input and output use existing JSON columns. Job insertion and SQS sending are not atomic; a known send failure records a failed job and returns non-success.
 
 The Lambda packaging helper now copies this module and exports locked external API dependencies. A full Linux Lambda ZIP was not built here because Docker is unavailable; verify its size and runtime in the later deployment stage.
 

@@ -21,6 +21,7 @@ from mangum import Mangum
 from dotenv import load_dotenv
 from fastapi_clerk_auth import ClerkConfig, ClerkHTTPBearer, HTTPAuthorizationCredentials
 from market_data.repository import PriceRepository
+from market_data.analysis import capture_snapshot, PricesUnavailable
 from market_data.universe import require_symbol, universe_metadata
 from market_data.calendar import history_window
 
@@ -547,7 +548,7 @@ async def list_instruments(clerk_user_id: str = Depends(get_current_user_id)):
 
 @app.post("/api/analyze", response_model=AnalyzeResponse)
 async def trigger_analysis(request: AnalyzeRequest, clerk_user_id: str = Depends(get_current_user_id)):
-    """Fail closed until task 5 connects immutable verified price snapshots."""
+    """Freeze verified prices and owned holdings before creating a queued job."""
 
     try:
         # Get user
@@ -556,13 +557,28 @@ async def trigger_analysis(request: AnalyzeRequest, clerk_user_id: str = Depends
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
 
-        return JSONResponse(
-            status_code=503,
-            content={"code": "verified_price_snapshot_required",
-                     "detail": "Analysis is unavailable until verified portfolio pricing is connected."},
-            headers={"Cache-Control": "no-store"},
-        )
+        dsn = os.getenv("MARKET_DATABASE_URL")
+        if not dsn or not SQS_QUEUE_URL:
+            return JSONResponse(status_code=503, content={"code": "verified_price_snapshot_required",
+                "detail": "Verified analysis is not configured."}, headers={"Cache-Control": "no-store"})
+        with psycopg.connect(dsn, connect_timeout=5) as connection:
+            connection.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+            snapshot = capture_snapshot(db, PriceRepository(connection), user, datetime.now(timezone.utc))
+        job_id = db.jobs.create_job(clerk_user_id, "portfolio_analysis", {
+            "analysis_type": request.analysis_type, "price_snapshot": snapshot})
+        try:
+            sqs_client.send_message(QueueUrl=SQS_QUEUE_URL, MessageBody=job_id)
+        except Exception:
+            db.jobs.update_status(job_id, "failed", error_message="analysis_queue_unavailable")
+            raise HTTPException(status_code=503, detail="Analysis queue unavailable") from None
+        return AnalyzeResponse(job_id=job_id, message="Analysis queued with verified price snapshot")
 
+    except PricesUnavailable as exc:
+        return JSONResponse(status_code=422, content={"code": "verified_prices_unavailable",
+            "detail": "Analysis cannot value all holdings; verified prices are required.",
+            "affected_symbols": exc.affected_symbols}, headers={"Cache-Control": "no-store"})
+    except psycopg.Error:
+        raise HTTPException(status_code=503, detail="Verified prices unavailable") from None
     except HTTPException:
         raise
     except Exception as e:

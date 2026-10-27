@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 from agents import function_tool, RunContextWrapper
 from agents.extensions.models.litellm_model import LitellmModel
+from src.snapshots import load_snapshot, pricing_markdown
 
 logger = logging.getLogger()
 
@@ -136,51 +137,16 @@ def handle_missing_instruments(job_id: str, db) -> None:
 
 
 def load_portfolio_summary(job_id: str, db) -> Dict[str, Any]:
-    """Load basic portfolio summary statistics only."""
-    try:
-        job = db.jobs.find_by_id(job_id)
-        if not job:
-            raise ValueError(f"Job {job_id} not found")
-
-        user_id = job["clerk_user_id"]
-        user = db.users.find_by_clerk_id(user_id)
-        if not user:
-            raise ValueError(f"User {user_id} not found")
-
-        accounts = db.accounts.find_by_user(user_id)
-        
-        # Calculate simple summary statistics
-        total_value = 0.0
-        total_positions = 0
-        total_cash = 0.0
-        
-        for account in accounts:
-            total_cash += float(account.get("cash_balance", 0))
-            positions = db.positions.find_by_account(account["id"])
-            total_positions += len(positions)
-            
-            # Add position values
-            for position in positions:
-                instrument = db.instruments.find_by_symbol(position["symbol"])
-                if instrument and instrument.get("current_price"):
-                    price = float(instrument["current_price"])
-                    quantity = float(position["quantity"])
-                    total_value += price * quantity
-        
-        total_value += total_cash
-        
-        # Return only summary statistics
-        return {
-            "total_value": total_value,
-            "num_accounts": len(accounts),
-            "num_positions": total_positions,
-            "years_until_retirement": user.get("years_until_retirement", 30),
-            "target_retirement_income": float(user.get("target_retirement_income", 80000))
-        }
-
-    except Exception as e:
-        logger.error(f"Error loading portfolio summary: {e}")
-        raise
+    """Summarize only the holdings and prices frozen when the job was created."""
+    from decimal import Decimal
+    snapshot = load_snapshot(db, job_id)
+    prices = {row["symbol"]: Decimal(row["close"]) for row in snapshot["prices"]}
+    total = sum((Decimal(account["cash_balance"]) for account in snapshot["accounts"]), Decimal(0))
+    positions = [position for account in snapshot["accounts"] for position in account["positions"]]
+    total += sum((Decimal(position["quantity"]) * prices[position["symbol"]] for position in positions), Decimal(0))
+    return {"total_value": str(total), "num_accounts": len(snapshot["accounts"]),
+            "num_positions": len(positions), **snapshot["user_preferences"],
+            "price_basis": pricing_markdown(snapshot)}
 
 
 async def invoke_reporter_internal(job_id: str) -> str:
@@ -279,6 +245,8 @@ def create_agent(job_id: str, portfolio_summary: Dict[str, Any], db):
     # Create minimal task context
     task = f"""Job {job_id} has {portfolio_summary['num_positions']} positions.
 Retirement: {portfolio_summary['years_until_retirement']} years.
+
+{portfolio_summary['price_basis']}
 
 Call the appropriate agents."""
 

@@ -12,9 +12,9 @@
 
 3. **[行情失敗或品質不合格時可追查與恢復](https://github.com/husky0787/Alex/issues/5)** — 已完成；PR #16 已合併。[本機驗收條件](03-quality-recovery.md)
 
-4. **[20 支標的的 90 天歷史可回補與查詢](https://github.com/husky0787/Alex/issues/6)** — 已實作並驗證，[Draft PR #17](https://github.com/husky0787/Alex/pull/17) 等待審查與合併；分支 `feat/task-04-universe-history`；依賴 #5 已完成。[本機驗收條件](04-universe-history.md)；[驗證紀錄](../../verification/task-04-universe-history.md)
+4. **[20 支標的的 90 天歷史可回補與查詢](https://github.com/husky0787/Alex/issues/6)** — 已完成；[PR #17](https://github.com/husky0787/Alex/pull/17) 已合併；依賴 #5 已完成。[本機驗收條件](04-universe-history.md)；[驗證紀錄](../../verification/task-04-universe-history.md)
 
-5. **[分析報告使用已驗證的行情](https://github.com/husky0787/Alex/issues/7)** — GitHub #7；Blocked by：#5。[本機驗收條件](05-analysis-price-provenance.md)
+5. **[分析報告使用已驗證的行情](https://github.com/husky0787/Alex/issues/7)** — 已實作並驗證，等待 PR 審查與合併；分支 `feat/task-05-analysis-price-provenance`；依賴 #5 已完成。[本機驗收條件](05-analysis-price-provenance.md)
 
 6. **[研究內容可寫入、檢索並用於報告](https://github.com/husky0787/Alex/issues/8)** — GitHub #8；Blocked by：#7。[本機驗收條件](06-research-chain.md)
 

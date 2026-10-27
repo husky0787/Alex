@@ -7,6 +7,7 @@ import logging
 from typing import Dict, Any
 
 from agents.extensions.models.litellm_model import LitellmModel
+from src.snapshots import pricing_markdown
 
 from templates import CHARTER_INSTRUCTIONS, create_charter_task
 
@@ -44,13 +45,7 @@ def analyze_portfolio(portfolio_data: Dict[str, Any]) -> str:
             symbol = position.get("symbol")
             quantity = float(position.get("quantity", 0))
             instrument = position.get("instrument", {})
-            # Handle None or missing current_price
-            current_price = instrument.get("current_price")
-            if current_price is None or current_price == "":
-                price = 1.0  # Default price if not available
-                logger.warning(f"Charter: No price for {symbol}, using default of 1.0")
-            else:
-                price = float(current_price)
+            price = float(instrument["current_price"])
             value = quantity * price
 
             position_values[symbol] = position_values.get(symbol, 0) + value
@@ -90,13 +85,7 @@ def analyze_portfolio(portfolio_data: Dict[str, Any]) -> str:
             symbol = position.get("symbol")
             quantity = float(position.get("quantity", 0))
             instrument = position.get("instrument", {})
-            # Handle None or missing current_price
-            current_price = instrument.get("current_price")
-            if current_price is None or current_price == "":
-                price = 1.0  # Default price if not available
-                logger.warning(f"Charter: No price for {symbol}, using default of 1.0")
-            else:
-                price = float(current_price)
+            price = float(instrument["current_price"])
             value = quantity * price
             
             # Aggregate asset classes
@@ -152,7 +141,7 @@ def create_agent(job_id: str, portfolio_data: Dict[str, Any], db=None):
     model = LitellmModel(model=f"bedrock/{model_id}")
     
     # Analyze the portfolio upfront
-    portfolio_analysis = analyze_portfolio(portfolio_data)
+    portfolio_analysis = pricing_markdown(portfolio_data["price_snapshot"]) + "\n\n" + analyze_portfolio(portfolio_data)
     logger.info(f"Charter: Portfolio analysis generated, length: {len(portfolio_analysis)}")
     
     # Create the task using template
