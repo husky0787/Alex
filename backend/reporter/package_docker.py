@@ -41,7 +41,8 @@ def package_lambda():
         # Export exact requirements from uv.lock (excluding the editable database package)
         print("Exporting requirements from uv.lock...")
         requirements_result = run_command(
-            ["uv", "export", "--no-hashes", "--no-emit-project"], cwd=str(reporter_dir)
+            ["uv", "export", "--locked", "--no-hashes", "--no-emit-project",
+             "--no-emit-package", "alex-database", "--no-emit-package", "alex-research"], cwd=str(reporter_dir)
         )
 
         # Filter out packages that don't work in Lambda
@@ -72,11 +73,13 @@ def package_lambda():
             f"{temp_path}:/build",
             "-v",
             f"{backend_dir}/database:/database",
+            "-v",
+            f"{backend_dir}/research:/research",
             "--entrypoint",
             "/bin/bash",
             "public.ecr.aws/lambda/python:3.12",
             "-c",
-            """cd /build && pip install --target ./package -r requirements.txt && pip install --target ./package --no-deps /database""",
+            """cd /build && pip install --target ./package -r requirements.txt && pip install --target ./package --no-deps /database /research""",
         ]
 
         run_command(docker_cmd)

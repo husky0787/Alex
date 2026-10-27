@@ -1,0 +1,9 @@
+**
+!researcher/
+!researcher/*.py
+!researcher/pyproject.toml
+!researcher/uv.lock
+!research/
+!research/pyproject.toml
+!research/research_chain/
+!research/research_chain/*.py

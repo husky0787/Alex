@@ -39,3 +39,9 @@ An ingestion operation that fills missing, already-published trading dates in a 
 
 **Analysis price snapshot**:
 The fixed holdings, cash and verified daily prices used for one analysis, with each price's trading date, freshness and source version. Later portfolio edits or source revisions do not change that report's price basis.
+
+**Attributed research**:
+A research summary identified by its research ID and the source pages captured with their retrieval times. Attribution records where the summary came from; it does not certify the source's claims or make the summary a verified price.
+
+**Research unavailable**:
+No attributed research could be retrieved for the report. The report can still show its verified holdings and price basis, but cannot present a replacement research narrative as sourced analysis.

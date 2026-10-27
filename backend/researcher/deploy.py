@@ -186,9 +186,11 @@ def main():
             "linux/amd64",
             "-t",
             local_image,
+            "-f",
+            "researcher/Dockerfile",
             ".",
         ],
-        cwd=backend_dir,
+        cwd=backend_dir.parent,
     )
 
     # Tag for ECR

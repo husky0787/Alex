@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Import from our modules
 from context import get_agent_instructions, DEFAULT_RESEARCH_PROMPT
 from mcp_servers import create_playwright_mcp_server
-from tools import ingest_financial_document
+from tools import ingest_financial_document, ResearchContext
 
 # Load environment
 load_dotenv(override=True)
@@ -63,7 +63,7 @@ class ResearchRequest(BaseModel):
     topic: Optional[str] = None  # Optional - if not provided, agent picks a topic
 
 
-async def run_research_agent(topic: str = None) -> str:
+async def run_research_agent(topic: str = None) -> dict:
     """Run the research agent to generate investment advice."""
 
     # Prepare the user query
@@ -99,8 +99,9 @@ async def run_research_agent(topic: str = None) -> str:
         )
 
     # Create and run the agent with MCP server
+    context = ResearchContext()
     with trace("Researcher"):
-        async with create_playwright_mcp_server(timeout_seconds=120) as playwright_mcp:
+        async with create_playwright_mcp_server(timeout_seconds=120, sources=context.sources) as playwright_mcp:
             if MCP_LOGGING_ENABLED:
                 logger.info("Playwright MCP server context created")
             agent = Agent(
@@ -115,6 +116,7 @@ async def run_research_agent(topic: str = None) -> str:
                 result = await Runner.run(
                     agent,
                     input=query,
+                    context=context,
                     max_turns=15,
                     hooks=ResearchLoggingHooks() if MCP_LOGGING_ENABLED else None,
                 )
@@ -129,7 +131,9 @@ async def run_research_agent(topic: str = None) -> str:
                     _trim_for_log(result.final_output, max_length=1000),
                 )
 
-    return result.final_output
+    if not context.receipts:
+        raise HTTPException(status_code=503, detail="research_not_stored")
+    return {"status": "success", "content": result.final_output, "research": context.receipts}
 
 
 @app.get("/")
@@ -143,7 +147,7 @@ async def root():
 
 
 @app.post("/research")
-async def research(request: ResearchRequest) -> str:
+async def research(request: ResearchRequest) -> dict:
     """
     Generate investment research and advice.
 
@@ -159,12 +163,14 @@ async def research(request: ResearchRequest) -> str:
     try:
         response = await run_research_agent(request.topic)
         return response
+    except HTTPException:
+        raise
     except Exception as e:
         print(f"Error in research endpoint: {e}")
         import traceback
 
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=503, detail="research_unavailable") from e
 
 
 @app.get("/research/auto")
@@ -181,11 +187,12 @@ async def research_auto():
             "status": "success",
             "timestamp": datetime.now(UTC).isoformat(),
             "message": "Automated research completed",
-            "preview": response[:200] + "..." if len(response) > 200 else response,
+            "preview": response["content"][:200],
+            "research": response["research"],
         }
     except Exception as e:
         print(f"Error in automated research: {e}")
-        return {"status": "error", "timestamp": datetime.now(UTC).isoformat(), "error": str(e)}
+        raise HTTPException(status_code=503, detail="research_unavailable") from e
 
 
 @app.get("/health")

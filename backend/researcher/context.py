@@ -30,6 +30,9 @@ Your THREE steps (BE CONCISE):
    - Use ingest_financial_document immediately
    - Topic: "[Asset] Analysis {datetime.now().strftime('%b %d')}"
    - Save your brief analysis
+   - Include source_urls copied exactly from the final Page URL of successful browser navigation.
+   - Only cite pages you actually read. Never invent a URL or claim success if ingestion fails.
+   - A successful ingestion receipt is required to finish; do not repeat an already successful save.
 
 SPEED IS CRITICAL:
 - Maximum 2 web pages

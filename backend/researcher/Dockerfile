@@ -25,12 +25,13 @@ RUN npx -y playwright install --with-deps chromium
 RUN pip install uv
 
 # Copy dependency metadata first so Docker can cache the install layer.
-COPY pyproject.toml uv.lock ./
+COPY researcher/pyproject.toml researcher/uv.lock ./
+COPY research /research
 RUN uv sync --frozen --no-install-project
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy the application code.
-COPY *.py ./
+COPY researcher/*.py ./
 
 # Add the Lambda Web Adapter so Lambda can proxy HTTP requests to uvicorn.
 COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
