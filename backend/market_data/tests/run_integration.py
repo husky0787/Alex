@@ -15,6 +15,7 @@ import tempfile
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--live-smoke", action="store_true", help="Make one real provider request using an isolated DB")
+    parser.add_argument("--live-backfill", action="store_true", help="Verify all 20 symbols against the live source, paced over several minutes")
     parser.add_argument("--env-file", type=Path, default=Path(".env"))
     args = parser.parse_args()
     pg_bin = Path(os.environ.get("PG_BIN", Path(shutil.which("pg_ctl") or "").parent))
@@ -40,6 +41,20 @@ def main():
         try:
             environment = {**os.environ, "MARKET_TEST_DATABASE_URL":
                            f"postgresql://alex_test@127.0.0.1:{port}/postgres"}
+            if args.live_backfill:
+                environment["MARKET_DATABASE_URL"] = environment["MARKET_TEST_DATABASE_URL"]
+                evidence_root = Path(".local/market-data/task-04")
+                evidence_root.mkdir(parents=True, exist_ok=True)
+                subprocess.run([sys.executable, "-m", "market_data", "migrate"], env=environment, check=True)
+                result = subprocess.run([sys.executable, "-m", "market_data", "--env-file",
+                                         str(args.env_file.resolve()), "backfill", "--raw-dir", str(evidence_root),
+                                         "--evidence", str(evidence_root / "backfill.json")], env=environment)
+                if result.returncode == 0:
+                    subprocess.run([sys.executable, str(Path(__file__).parent / "verify_live_history.py")],
+                                   env=environment, check=True)
+                subprocess.run([str(pg_bin / f"pg_dump{suffix}"), "--dbname", environment["MARKET_DATABASE_URL"],
+                                "--format=custom", "--file", str(evidence_root / "database.dump")], check=True)
+                return result.returncode
             if args.live_smoke:
                 environment["MARKET_DATABASE_URL"] = environment["MARKET_TEST_DATABASE_URL"]
                 subprocess.run([sys.executable, "-m", "market_data", "migrate"],

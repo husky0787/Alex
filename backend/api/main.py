@@ -7,7 +7,7 @@ import os
 import json
 import logging
 from typing import Optional, List, Dict, Any
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from decimal import Decimal
 import uuid
 
@@ -21,7 +21,8 @@ from mangum import Mangum
 from dotenv import load_dotenv
 from fastapi_clerk_auth import ClerkConfig, ClerkHTTPBearer, HTTPAuthorizationCredentials
 from market_data.repository import PriceRepository
-from market_data.universe import require_symbol
+from market_data.universe import require_symbol, universe_metadata
+from market_data.calendar import history_window
 
 from src import Database
 from src.schemas import (
@@ -145,6 +146,35 @@ class AnalyzeResponse(BaseModel):
     message: str
 
 # API Routes
+
+@app.get("/api/market-data/universe")
+def get_market_universe(clerk_user_id: str = Depends(get_current_user_id)):
+    return JSONResponse(content=universe_metadata(), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/market-data/{symbol}/history")
+def get_market_history(symbol: str, from_date: Optional[date] = None, to_date: Optional[date] = None,
+                       clerk_user_id: str = Depends(get_current_user_id)):
+    try:
+        symbol = require_symbol(symbol)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Unsupported symbol") from None
+    now = datetime.now(timezone.utc)
+    try:
+        start, end = history_window(now, from_date, to_date)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from None
+    database_url = os.getenv("MARKET_DATABASE_URL")
+    if not database_url:
+        raise HTTPException(status_code=503, detail="Market data is not configured")
+    try:
+        with psycopg.connect(database_url, autocommit=True, connect_timeout=5) as connection:
+            result = PriceRepository(connection).history(symbol, start, end, as_of=now)
+        return JSONResponse(content=result, headers={"Cache-Control": "no-store"})
+    except psycopg.Error:
+        logger.error("Market history database unavailable")
+        raise HTTPException(status_code=503, detail="Market data temporarily unavailable") from None
+
 
 @app.get("/api/market-data/{symbol}")
 def get_verified_market_price(symbol: str, clerk_user_id: str = Depends(get_current_user_id)):

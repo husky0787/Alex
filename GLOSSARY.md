@@ -30,3 +30,9 @@ An ingestion run that published valid bars but also encountered rejected records
 
 **Completed through**:
 The last consecutive expected trading date covered by valid bars within a run's requested interval. A later valid bar does not close an earlier gap.
+
+**History coverage**:
+The verified trading dates present within a requested date window compared with the dates already expected from the source. A fresh latest price can coexist with incomplete history coverage.
+
+**Backfill**:
+An ingestion operation that fills missing, already-published trading dates in a requested history window. Repeating it preserves dates that are already covered.

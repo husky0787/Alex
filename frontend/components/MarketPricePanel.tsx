@@ -24,13 +24,14 @@ interface MarketResult {
 interface Props {
   tokenProvider: () => Promise<string | null>;
   enabled: boolean;
+  symbol?: string;
 }
 
 const dollars = new Intl.NumberFormat('en-US', {
   style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 4,
 });
 
-export default function MarketPricePanel({ tokenProvider, enabled }: Props) {
+export default function MarketPricePanel({ tokenProvider, enabled, symbol = 'AAPL' }: Props) {
   const [data, setData] = useState<MarketResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -44,11 +45,12 @@ export default function MarketPricePanel({ tokenProvider, enabled }: Props) {
     const controller = new AbortController();
     setLoading(true);
     setError(false);
+    setData(null);
     async function load() {
       try {
         const token = await tokenProvider();
         if (!token) throw new Error('Sign in required');
-        const response = await fetch(`${API_URL}/api/market-data/AAPL`, {
+        const response = await fetch(`${API_URL}/api/market-data/${encodeURIComponent(symbol)}`, {
           headers: { Authorization: `Bearer ${token}` }, signal: controller.signal,
         });
         if (!response.ok) throw new Error('Market data request failed');
@@ -62,7 +64,7 @@ export default function MarketPricePanel({ tokenProvider, enabled }: Props) {
     }
     void load();
     return () => controller.abort();
-  }, [enabled, tokenProvider]);
+  }, [enabled, tokenProvider, symbol]);
 
   if (loading) return <p role="status" className="text-gray-600 py-8">Loading verified market data…</p>;
   if (error) return <div role="alert" className="rounded-xl bg-amber-50 border border-amber-200 p-6">
@@ -70,7 +72,7 @@ export default function MarketPricePanel({ tokenProvider, enabled }: Props) {
     <p className="mt-2 text-sm">Unable to load verified market data. Try again later.</p>
   </div>;
   if (!data?.price || data.status === 'unavailable') return <div role="status" className="rounded-xl bg-white border p-6">
-    <h2 className="font-semibold">AAPL · Unavailable</h2>
+    <h2 className="font-semibold">{symbol} · Unavailable</h2>
     <p className="mt-2 text-sm text-gray-600">No verified daily price is available.</p>
     {data && <p className="mt-2 text-sm text-gray-600">Expected trading date: {data.expected_trade_date}</p>}
   </div>;
@@ -80,11 +82,11 @@ export default function MarketPricePanel({ tokenProvider, enabled }: Props) {
   const [wholeVolume, fractionalVolume] = price.volume.split('.');
   const groupedVolume = wholeVolume.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const volume = fractionalVolume ? `${groupedVolume}.${fractionalVolume}` : groupedVolume;
-  return <section aria-label="Verified AAPL daily price" className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+  return <section aria-label={`Verified ${symbol} daily price`} className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
     <div className="flex items-center justify-between gap-4 flex-wrap">
       <div>
-        <h2 className="text-2xl font-semibold text-gray-900">AAPL</h2>
-        <p className="text-sm text-gray-600 mt-1">Apple · Daily OHLCV · USD</p>
+        <h2 className="text-2xl font-semibold text-gray-900">{symbol}</h2>
+        <p className="text-sm text-gray-600 mt-1">Daily OHLCV · USD</p>
       </div>
       <span className={`rounded-full px-3 py-1 text-sm font-medium ${data.status === 'fresh' ? 'bg-green-50 text-green-800' : 'bg-amber-50 text-amber-900'}`}>
         {data.status === 'fresh' ? 'Fresh' : 'Stale'}

@@ -1,6 +1,6 @@
 # Verified daily market data
 
-This package adds a traceable daily-price path alongside Alex's account services. The first screen shows AAPL. Seeded `instruments.current_price` is not a verified quote. Task 3 removes the random fallback and temporarily blocks new analysis; task 5 will connect immutable portfolio price snapshots and restore analysis using verified prices.
+This package adds a traceable daily-price path alongside Alex's account services. The market page supports 20 US stocks/ETFs, latest daily prices and a 90-calendar-day history. Seeded `instruments.current_price` is not a verified quote. Task 3 removes the random fallback and temporarily blocks new analysis; task 5 will connect immutable portfolio price snapshots and restore analysis using verified prices.
 
 ```text
 Massive daily REST bars → raw response → validate → PostgreSQL history + run record
@@ -16,7 +16,7 @@ The existing `POLYGON_API_KEY` name works. `MASSIVE_API_KEY` is also supported a
 
 Bars are split-adjusted (`adjusted=true`), denominated in USD, and dated in America/New_York. Volume supports fractional shares: it is stored as PostgreSQL `NUMERIC` and returned as a decimal string, as are prices. Freshness uses the latest XNYS trading date before the current ET date, matching Basic's after-midnight EOD availability. `fresh` means current for this publication schedule, not real-time. `stale` retains the dated verified bar; `unavailable` contains no price.
 
-The 20-symbol v1 universe is recorded in `market_data/universe.py`; task 4 supplies full-universe batch coverage and historical presentation. The current page intentionally displays the first AAPL slice.
+The fixed v1 universe is AAPL, MSFT, GOOGL, AMZN, NVDA, META, TSLA, SPY, QQQ, VTI, VOO, IWM, DIA, VEA, VWO, BND, AGG, TLT, GLD and VNQ. `market_data/universe.py` is the source of truth; the authenticated `/api/market-data/universe` endpoint supplies the selector. The ETFs are US-listed, including those holding international assets.
 
 ## Local configuration
 
@@ -43,6 +43,23 @@ Raw responses default to `.local/market-data/raw/...`, ignored by Git. Every HTT
 Repeating an unchanged bar preserves its version identity while retaining each run's sighting. A correction A→B→A displays the latest sighting of A without duplicating A or losing B. Raw writes precede database publication; price versions, sightings, quarantine and terminal completion commit together. `completed_through` stops at the first missing expected trading date within this run. It is not a global watermark; a fresh visible price does not prove the entire requested history is complete.
 
 For the later AWS environment, `ingest --raw-bucket <private-data-bucket>` uses encrypted S3 writes with overwrite prevention. Provision that private bucket separately from frontend hosting and grant narrowly scoped access. The adapter is tested with AWS stubs; no bucket has been provisioned or live S3 call validated by this task.
+
+## History and resumable backfill
+
+```sh
+uv run --project backend --locked --package api -m market_data --env-file .env backfill
+uv run --project backend --locked --package api -m market_data --env-file .env history --symbol MSFT
+```
+
+Both commands default to today in America/New_York and the preceding 89 calendar dates. `backfill` checks all 20 symbols and uses `DailyPricePipeline` to fetch only the span from the first to last missing published session per symbol. Completed symbols are skipped; interrupted overlapping runs are resumed under the existing symbol lock. If a resumed smaller range succeeds, any remaining dates are fetched. A failed/partial resume remains visible for the next operator pass. No completion cursor jumps over a missing date.
+
+For a specific window/subset, add `--from 2026-08-01 --to 2026-10-26 --symbols AAPL MSFT` (choose dates within the current 90-day window). Repeat the same date arguments to continue that window after interruption; omitting them follows the new rolling window. Covered bars between gaps may be fetched again but their immutable versions are deduplicated. Backfill skips covered dates; use `ingest` explicitly to refresh covered data for possible source corrections.
+
+The CLI paces requests at least 13 seconds apart across symbols and retries. A first full-universe pull normally needs 20 calls and approximately four minutes, plus response time; external calls using the same key can still trigger 429. A repeated fully covered backfill makes no provider calls and needs no key. `--evidence <path>` optionally saves a credential-free coverage summary; `--raw-dir` and `--raw-bucket` have the same meaning as ingestion. Per-symbol progress goes to stderr, final JSON to stdout, and any remaining expected gap returns a nonzero exit code. On a database outage, rerun after fixing connectivity; persisted symbol results remain available.
+
+`GET /api/market-data/{symbol}/history` requires the same login as the latest-price endpoint and accepts optional `from_date` / `to_date` within the last 90 calendar dates. Results include sorted daily rows, source, currency, adjustment basis, exact decimal OHLCV strings, observation version/run/digest and coverage counts. There are five date states: `available`, `missing`, `weekend`, `holiday` and `not_published`. Non-trading/unpublished dates do not count as expected gaps. No history uses legacy instrument prices or exposes raw storage paths.
+
+The chart connects across weekends and holidays but breaks on missing/unpublished trading days. Empty values stay empty; the table shows exact numeric strings. A latest price can be fresh while historical coverage remains partial. History reflects the latest accepted source sightings, not a historical information-as-of snapshot.
 
 ## Automated verification
 
@@ -87,6 +104,8 @@ npm run test:market
 ```
 
 Normal tests use controlled fixtures and make no provider request. The live smoke, authenticated API check, and rendered panel check together cover source-to-screen behavior without provisioning AWS.
+
+For explicit full-universe verification, run `uv run --project backend --locked --package api backend/market_data/tests/run_integration.py --live-backfill --env-file .env`. It uses a new isolated database, runs the paced backfill, checks all 20 histories through real API authentication with a local test issuer, and repeats backfill without a provider to verify that complete coverage is skipped. Private raw data, metadata, API histories and a database dump are retained under `.local/market-data/task-04/`; the test server stops afterward. No subscription or AWS resource is created. Set `MARKET_LIVE_HISTORY_FILE` to that folder's `api-history.json` when running `npm run test:market` to exercise the actual data in the history UI.
 
 ## Failure boundaries
 

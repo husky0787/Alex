@@ -13,6 +13,7 @@ import httpx
 import psycopg
 
 from .calendar import EASTERN, latest_published_session
+from .backfill import HistoryBackfill
 from .pipeline import DailyPricePipeline
 from .provider import MassiveDailyProvider
 from .repository import PriceRepository
@@ -26,6 +27,17 @@ def main(argv=None):
     sub.add_parser("migrate", help="Create additive market-data tables in MARKET_DATABASE_URL")
     show = sub.add_parser("latest", help="Read a verified price, never legacy current_price")
     show.add_argument("--symbol", default="AAPL")
+    history = sub.add_parser("history", help="Read up to 90 calendar days with explicit missing/non-trading dates")
+    history.add_argument("--symbol", default="AAPL")
+    history.add_argument("--from", dest="start", type=date.fromisoformat)
+    history.add_argument("--to", dest="end", type=date.fromisoformat)
+    backfill = sub.add_parser("backfill", help="Fill missing published sessions; repeat to continue after interruption")
+    backfill.add_argument("--symbols", nargs="+", help="Supported subset; defaults to all 20 symbols")
+    backfill.add_argument("--from", dest="start", type=date.fromisoformat)
+    backfill.add_argument("--to", dest="end", type=date.fromisoformat)
+    backfill.add_argument("--raw-dir", type=Path, default=Path(".local/market-data"))
+    backfill.add_argument("--raw-bucket", help="Existing private data bucket")
+    backfill.add_argument("--evidence", type=Path, help="Optional credential-free coverage summary")
     listing = sub.add_parser("runs", help="List up to 100 recent runs for operator diagnosis")
     listing.add_argument("--status", choices=["running", "succeeded", "partial", "failed", "unavailable"])
     inspect = sub.add_parser("inspect", help="Show run, attempts, quarantine and published observations")
@@ -62,6 +74,9 @@ def main(argv=None):
                 from .universe import require_symbol
                 print(json.dumps(repository.latest(require_symbol(args.symbol), as_of=now)))
                 return 0
+            if args.command == "history":
+                print(json.dumps(repository.history(args.symbol, args.start, args.end, as_of=now)))
+                return 0
             if args.command == "runs":
                 print(json.dumps(repository.runs(status=args.status)))
                 return 0
@@ -69,12 +84,25 @@ def main(argv=None):
                 print(json.dumps(repository.report(str(args.run_id))))
                 return 0
             key = os.getenv("MASSIVE_API_KEY") or os.getenv("POLYGON_API_KEY")
-            if not key and args.command != "resume":
+            if not key and args.command not in ("resume", "backfill"):
                 parser.error("Set POLYGON_API_KEY or MASSIVE_API_KEY locally; never paste it into chat or commit it")
             store = (S3RawStore(args.raw_bucket, boto3.client("s3"))
                      if getattr(args, "raw_bucket", None) else LocalRawStore(args.raw_dir))
             with httpx.Client() as client:
-                pipeline = DailyPricePipeline(MassiveDailyProvider(key, client) if key else None, store, repository)
+                pipeline = DailyPricePipeline(MassiveDailyProvider(key, client, min_interval=13) if key else None,
+                                              store, repository, clock=lambda: datetime.now(timezone.utc))
+                if args.command == "backfill":
+                    from .universe import SYMBOLS
+                    def progress(row):
+                        print(f"{row['symbol']}: {row['coverage']} ({row['available_count']}/{row['expected_count']})",
+                              file=sys.stderr, flush=True)
+                    result = HistoryBackfill(pipeline, repository, clock=lambda: now).run(
+                        args.start, args.end, symbols=args.symbols or SYMBOLS, on_progress=progress)
+                    if args.evidence:
+                        args.evidence.parent.mkdir(parents=True, exist_ok=True)
+                        args.evidence.write_text(json.dumps(result, indent=2), encoding="utf-8")
+                    print(json.dumps(result))
+                    return 0 if result["status"] == "succeeded" else 1
                 if args.command in ("resume", "retry"):
                     result = getattr(pipeline, args.command)(str(args.run_id))
                 else:
