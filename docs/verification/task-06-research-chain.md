@@ -35,3 +35,7 @@ Verified locally: 50 PostgreSQL/pipeline integration tests, 4 ingestion/search t
 6. Record exact resource names, invocation durations and model tokens. Reconcile the test window against Billing after its reporting delay; until then label costs estimates, not actual charges. Clean up only resources explicitly created for this acceptance window.
 
 Sources: [S3 vector limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors-limitations.html), [Terraform vector index](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3vectors_index), [MiniLM model usage](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2), [SageMaker pricing](https://aws.amazon.com/sagemaker/ai/pricing/), [Bedrock pricing](https://aws.amazon.com/bedrock/pricing/), [Lambda pricing](https://aws.amazon.com/lambda/pricing/), [ECR pricing](https://aws.amazon.com/ecr/pricing/).
+
+## Review
+
+Reviewed commits `55b107c` and `153071a` against merged task 5 baseline `70b3201a7f3135feb277ac6b891787c1dbfc4e76`. Standards found one Docker context allowlist issue; the parent-directory exceptions are now followed by descendant exclusions before exact file exceptions. Follow-up Standards: 0 remaining; Spec: 0 remaining. These reviews did not run Docker or paid cloud tests. Ingestion/search smoke CLI help was checked without network calls; the Researcher live smoke was not run.
