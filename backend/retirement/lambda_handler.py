@@ -26,6 +26,7 @@ except ImportError:
 
 # Import database package
 from src import Database
+from src.snapshots import load_snapshot, portfolio_from_snapshot, pricing_markdown
 
 from templates import RETIREMENT_INSTRUCTIONS
 from agent import create_agent
@@ -33,31 +34,6 @@ from observability import observe
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
-
-def get_user_preferences(job_id: str) -> Dict[str, Any]:
-    """Load user preferences from database."""
-    try:
-        db = Database()
-        
-        # Get the job to find the user
-        job = db.jobs.find_by_id(job_id)
-        if job and job.get('clerk_user_id'):
-            # Get user preferences
-            user = db.users.find_by_clerk_id(job['clerk_user_id'])
-            if user:
-                return {
-                    'years_until_retirement': user.get('years_until_retirement', 30),
-                    'target_retirement_income': float(user.get('target_retirement_income', 80000)),
-                    'current_age': 40  # Default for now
-                }
-    except Exception as e:
-        logger.warning(f"Could not load user data: {e}. Using defaults.")
-    
-    return {
-        'years_until_retirement': 30,
-        'target_retirement_income': 80000.0,
-        'current_age': 40
-    }
 
 @retry(
     retry=retry_if_exception_type((RateLimitError, AgentTemporaryError, TimeoutError, asyncio.TimeoutError)),
@@ -69,7 +45,7 @@ async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> D
     """Run the retirement specialist agent."""
     
     # Get user preferences
-    user_preferences = get_user_preferences(job_id)
+    user_preferences = portfolio_data["user_preferences"]
     
     # Initialize database
     db = Database()
@@ -104,7 +80,8 @@ async def run_retirement_agent(job_id: str, portfolio_data: Dict[str, Any]) -> D
         
         # Save the analysis to database
         retirement_payload = {
-            'analysis': result.final_output,
+            'analysis': pricing_markdown(portfolio_data["price_snapshot"]) + "\n\n" + result.final_output,
+            'price_snapshot_sha256': portfolio_data["price_snapshot"]["sha256"],
             'generated_at': datetime.utcnow().isoformat(),
             'agent': 'retirement'
         }
@@ -146,69 +123,9 @@ def lambda_handler(event, context):
                     'body': json.dumps({'error': 'job_id is required'})
                 }
 
-            portfolio_data = event.get('portfolio_data')
-            if not portfolio_data:
-                # Try to load from database
-                logger.info(f"Retirement Loading portfolio data for job {job_id}")
-                try:
-                    import sys
-                    sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-                    from src import Database
-
-                    db = Database()
-                    job = db.jobs.find_by_id(job_id)
-                    if job:
-                        if observability:
-                            observability.create_event(
-                                name="Retirement Started!", status_message="OK"
-                            )
-                        
-                        # portfolio_data = job.get('request_payload', {}).get('portfolio_data', {})
-                        user_id = job['clerk_user_id']
-                        user = db.users.find_by_clerk_id(user_id)
-                        accounts = db.accounts.find_by_user(user_id)
-
-                        portfolio_data = {
-                            'user_id': user_id,
-                            'job_id': job_id,
-                            'years_until_retirement': user.get('years_until_retirement', 30) if user else 30,
-                            'accounts': []
-                        }
-
-                        for account in accounts:
-                            account_data = {
-                                'id': account['id'],
-                                'name': account['account_name'],
-                                'type': account.get('account_type', 'investment'),
-                                'cash_balance': float(account.get('cash_balance', 0)),
-                                'positions': []
-                            }
-
-                            positions = db.positions.find_by_account(account['id'])
-                            for position in positions:
-                                instrument = db.instruments.find_by_symbol(position['symbol'])
-                                if instrument:
-                                    account_data['positions'].append({
-                                        'symbol': position['symbol'],
-                                        'quantity': float(position['quantity']),
-                                        'instrument': instrument
-                                    })
-
-                            portfolio_data['accounts'].append(account_data)
-
-                        logger.info(f"Retirement: Loaded {len(portfolio_data['accounts'])} accounts with positions")
-                    else:
-                        logger.error(f"Retirement: Job {job_id} not found")
-                        return {
-                            'statusCode': 404,
-                            'body': json.dumps({'error': f'Job {job_id} not found'})
-                        }
-                except Exception as e:
-                    logger.error(f"Could not load portfolio from database: {e}")
-                    return {
-                        'statusCode': 400,
-                        'body': json.dumps({'error': 'No portfolio data provided'})
-                    }
+            db = Database()
+            snapshot = load_snapshot(db, job_id)
+            portfolio_data = portfolio_from_snapshot(snapshot)
 
             logger.info(f"Retirement: Processing job {job_id}")
 

@@ -218,7 +218,13 @@ export default function AdvisorTeam() {
           });
         }, 5000);
       } else {
-        throw new Error('Failed to start analysis');
+        const problem = await response.json();
+        if (problem.code === 'verified_prices_unavailable' && Array.isArray(problem.affected_symbols)) {
+          const affected = problem.affected_symbols.map((item: { symbol: string; reason: string }) =>
+            `${item.symbol} (${item.reason === 'unsupported' ? 'unsupported symbol' : 'no verified price'})`).join(', ');
+          throw new Error(`Analysis cannot value all holdings: ${affected}. Update market data or your holdings, then retry.`);
+        }
+        throw new Error(problem.detail || 'Failed to start analysis');
       }
     } catch (error) {
       console.error('Error starting analysis:', error);

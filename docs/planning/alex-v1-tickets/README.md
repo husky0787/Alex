@@ -12,9 +12,9 @@
 
 3. **[行情失敗或品質不合格時可追查與恢復](https://github.com/husky0787/Alex/issues/5)** — 已完成；PR #16 已合併。[本機驗收條件](03-quality-recovery.md)
 
-4. **[20 支標的的 90 天歷史可回補與查詢](https://github.com/husky0787/Alex/issues/6)** — 已實作並驗證，[Draft PR #17](https://github.com/husky0787/Alex/pull/17) 等待審查與合併；分支 `feat/task-04-universe-history`；依賴 #5 已完成。[本機驗收條件](04-universe-history.md)；[驗證紀錄](../../verification/task-04-universe-history.md)
+4. **[20 支標的的 90 天歷史可回補與查詢](https://github.com/husky0787/Alex/issues/6)** — 已完成；[PR #17](https://github.com/husky0787/Alex/pull/17) 已合併；依賴 #5 已完成。[本機驗收條件](04-universe-history.md)；[驗證紀錄](../../verification/task-04-universe-history.md)
 
-5. **[分析報告使用已驗證的行情](https://github.com/husky0787/Alex/issues/7)** — GitHub #7；Blocked by：#5。[本機驗收條件](05-analysis-price-provenance.md)
+5. **[分析報告使用已驗證的行情](https://github.com/husky0787/Alex/issues/7)** — 已實作並驗證，[Draft PR #18](https://github.com/husky0787/Alex/pull/18) 待審查與合併；分支 `feat/task-05-analysis-price-provenance`；依賴 #5 已完成。[本機驗收條件](05-analysis-price-provenance.md)
 
 6. **[研究內容可寫入、檢索並用於報告](https://github.com/husky0787/Alex/issues/8)** — GitHub #8；Blocked by：#7。[本機驗收條件](06-research-chain.md)
 
@@ -28,4 +28,4 @@
 
 11. **[完成可重現的作品展示與驗收紀錄](https://github.com/husky0787/Alex/issues/13)** — GitHub #13；Blocked by：#8, #12。[本機驗收條件](11-release-evidence.md)
 
-2026-10-25 核對：#3–#5 已關閉；#6、#7、#9 的前置依賴已完成。下一步依規劃順序為任務 4（#6）。下方任務的 Blocked by 保留依賴關係，不表示被引用的 issue 仍開啟。GitHub Issues 是任務狀態的主要來源；本目錄保存規格、驗收條件與發布對照，換機接續見 [進度與設定入口](../alex-v1.md)。
+2026-10-27 核對：任務 1–4 已合併；任務 5 的 Draft PR #18 待審查與合併，其後依序進行任務 6（#8）。各列 Blocked by 保留依賴關係，不表示被引用的 issue 仍開啟。GitHub Issues 是任務狀態的主要來源；換機接續見 [進度與設定入口](../alex-v1.md)。

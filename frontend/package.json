@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "test:market": "node --import tsx --test tests/market-price.test.mjs",
+    "test:analysis": "node --import tsx --test tests/analysis-prices.test.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

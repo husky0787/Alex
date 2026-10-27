@@ -11,6 +11,7 @@ from datetime import datetime
 
 # No tools needed - simplified agent
 from agents.extensions.models.litellm_model import LitellmModel
+from src.snapshots import pricing_markdown
 
 logger = logging.getLogger()
 
@@ -28,7 +29,7 @@ def calculate_portfolio_value(portfolio_data: Dict[str, Any]) -> float:
         for position in account.get("positions", []):
             quantity = float(position.get("quantity", 0))
             instrument = position.get("instrument", {})
-            price = float(instrument.get("current_price", 100))
+            price = float(instrument["current_price"])
             total_value += quantity * price
 
     return total_value
@@ -51,7 +52,7 @@ def calculate_asset_allocation(portfolio_data: Dict[str, Any]) -> Dict[str, floa
         for position in account.get("positions", []):
             quantity = float(position.get("quantity", 0))
             instrument = position.get("instrument", {})
-            price = float(instrument.get("current_price", 100))
+            price = float(instrument["current_price"])
             value = quantity * price
             total_value += value
 
@@ -273,6 +274,8 @@ def create_agent(
     # Format comprehensive context for the agent
     task = f"""
 # Portfolio Analysis Context
+
+{pricing_markdown(portfolio_data["price_snapshot"])}
 
 ## Current Situation
 - Portfolio Value: ${portfolio_value:,.0f}

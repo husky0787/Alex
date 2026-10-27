@@ -36,3 +36,6 @@ The verified trading dates present within a requested date window compared with 
 
 **Backfill**:
 An ingestion operation that fills missing, already-published trading dates in a requested history window. Repeating it preserves dates that are already covered.
+
+**Analysis price snapshot**:
+The fixed holdings, cash and verified daily prices used for one analysis, with each price's trading date, freshness and source version. Later portfolio edits or source revisions do not change that report's price basis.

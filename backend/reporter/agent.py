@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from agents import function_tool, RunContextWrapper
 from agents.extensions.models.litellm_model import LitellmModel
+from src.snapshots import pricing_markdown
 
 logger = logging.getLogger()
 
@@ -204,7 +205,7 @@ def create_agent(job_id: str, portfolio_data: Dict[str, Any], user_data: Dict[st
     tools = [get_market_insights]
 
     # Format portfolio for analysis
-    portfolio_summary = format_portfolio_for_analysis(portfolio_data, user_data)
+    portfolio_summary = pricing_markdown(portfolio_data["price_snapshot"]) + "\n\n" + format_portfolio_for_analysis(portfolio_data, user_data)
 
     # Create task
     task = f"""Analyze this investment portfolio and write a comprehensive report.

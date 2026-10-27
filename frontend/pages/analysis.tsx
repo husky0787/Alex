@@ -11,12 +11,14 @@ import {
 import Layout from '../components/Layout';
 import { API_URL } from '../lib/config';
 import Head from 'next/head';
+import AnalysisPriceBasis, { AnalysisSnapshot } from '../components/AnalysisPriceBasis';
 
 interface Job {
   id: string;
   created_at: string;
   status: string;
   job_type: string;
+  request_payload?: { price_snapshot?: AnalysisSnapshot };
   report_payload?: {
     agent: string;
     content: string;
@@ -506,6 +508,8 @@ export default function Analysis() {
               </button>
             </div>
           </div>
+
+          <AnalysisPriceBasis snapshot={job.request_payload?.price_snapshot} />
 
           {/* Tabs */}
           <div className="bg-white rounded-lg shadow mb-8">

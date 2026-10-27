@@ -32,13 +32,21 @@ class VerifiedPriceGuardTests(unittest.TestCase):
                                       {"name": "started_at" if status == "running" else "completed_at", "value": ANY}]
                         if status == "failed":
                             parameters.append({"name": "error_message", "value": {
-                                "stringValue": "verified_price_snapshot_required: Analysis is unavailable until verified price snapshots are connected."}})
+                                "stringValue": "verified_price_snapshot_required: This job has no verified price snapshot."}})
                         parameters.append({"name": "id", "value": {"stringValue": job_id}})
                         rds.add_response("execute_statement", {"numberOfRecordsUpdated": 1}, {
                             "resourceArn": environment["AURORA_CLUSTER_ARN"],
                             "secretArn": environment["AURORA_SECRET_ARN"], "database": "alex",
                             "includeResultMetadata": True, "sql": ANY, "parameters": parameters,
                         })
+                        if status == "running":
+                            rds.add_response("execute_statement", {
+                                "columnMetadata": [{"name": "id"}, {"name": "clerk_user_id"}, {"name": "request_payload"}],
+                                "records": [[{"stringValue": job_id}, {"stringValue": "user_alice"}, {"stringValue": "{}"}]],
+                            }, {"resourceArn": environment["AURORA_CLUSTER_ARN"],
+                                "secretArn": environment["AURORA_SECRET_ARN"], "database": "alex",
+                                "includeResultMetadata": True, "sql": ANY,
+                                "parameters": [{"name": "id", "value": {"stringValue": job_id}}]})
                     response = handler.lambda_handler(event, None)
                     self.assertEqual(response["statusCode"], 500)
                     self.assertIn("verified_price_snapshot_required", json.loads(response["body"])["error"])
