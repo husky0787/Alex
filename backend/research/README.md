@@ -38,6 +38,8 @@ uv run --project backend/planner --locked backend/tests/test_snapshot_workers.py
 
 These tests substitute browser/model/AWS transports. They do not prove cloud permissions, browser compatibility, source relevance or live model quality.
 
+The old course smoke scripts now use this same contract. `backend/ingest/test_ingest_s3vectors.py --document <captured-document.json>` requires genuine source metadata instead of writing unattributed sample company descriptions. `test_search_s3vectors.py "known topic" --expected-id <research-id>` fails if the known research is absent. `backend/researcher/test_local.py` runs the same receipt-checked service flow. These smoke commands invoke real services and are reserved for the later cloud acceptance window.
+
 ## Build and deployment
 
 ```text

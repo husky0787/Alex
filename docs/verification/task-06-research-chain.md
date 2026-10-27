@@ -23,7 +23,7 @@ The current IAM identity cannot query Cost Explorer or list CodeBuild projects. 
 - Reporter retrieves before model execution, preserves evidence even if the model skips its optional tool, and records unavailable research explicitly. Failed/empty retrieval produces a deterministic holdings summary without model-generated research claims.
 - SageMaker flat, single-batch and token-level feature-extraction output shapes use the same adapter for ingestion and query; malformed dimensions and nonnumeric values fail explicitly.
 
-Verified locally: 50 PostgreSQL/pipeline integration tests, 4 ingestion/search tests, 2 Researcher receipt tests (including four failure scenarios), and 14 worker tests across Planner/Reporter/Charter/Retirement passed. Terraform 3 initialization and validation passed; the Linux ingestion zip built successfully. The Researcher image and Reporter Docker package are not built because Docker is unavailable. These local tests substitute external transports and are not cloud end-to-end evidence.
+Verified locally: 50 PostgreSQL/pipeline integration tests, 4 ingestion/search tests, 2 Researcher receipt tests (including four failure scenarios), 14 worker tests across Planner/Reporter/Charter/Retirement, and 11 API contract tests passed (81 total). Terraform 3 initialization and validation passed; the Linux ingestion zip built successfully. The Researcher image and Reporter Docker package are not built because Docker is unavailable. These local tests substitute external transports and are not cloud end-to-end evidence.
 
 ## Cloud acceptance still required
 
@@ -35,4 +35,3 @@ Verified locally: 50 PostgreSQL/pipeline integration tests, 4 ingestion/search t
 6. Record exact resource names, invocation durations and model tokens. Reconcile the test window against Billing after its reporting delay; until then label costs estimates, not actual charges. Clean up only resources explicitly created for this acceptance window.
 
 Sources: [S3 vector limits](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors-limitations.html), [Terraform vector index](https://registry.terraform.io/providers/hashicorp/aws/latest/docs/resources/s3vectors_index), [MiniLM model usage](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2), [SageMaker pricing](https://aws.amazon.com/sagemaker/ai/pricing/), [Bedrock pricing](https://aws.amazon.com/bedrock/pricing/), [Lambda pricing](https://aws.amazon.com/lambda/pricing/), [ECR pricing](https://aws.amazon.com/ecr/pricing/).
-
