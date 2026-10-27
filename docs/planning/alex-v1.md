@@ -14,7 +14,7 @@
 
 任務 3 合併 commit：`49e3a4e36b260ed7bb1e6ccf9a1c8591f2a58bc9`。上述結果以本機測試為主；新管線尚未部署 AWS，Kubernetes 仍待實作。
 
-任務 4 新增 20 支標的選擇、90 曆日歷史與可恢復回補；真實來源驗證 20 × 62 個已發布交易日，重跑全部跳過。見 [驗證紀錄](../verification/task-04-universe-history.md)。換機接續此任務須 checkout `feat/task-04-universe-history`；合併後再從最新 `main` 開始任務 5（#7）。
+任務 4 新增 20 支標的選擇、90 曆日歷史與可恢復回補；真實來源驗證 20 × 62 個已發布交易日，重跑全部跳過。[Draft PR #17](https://github.com/husky0787/Alex/pull/17)；[驗證紀錄](../verification/task-04-universe-history.md)。換機接續此任務須 checkout `feat/task-04-universe-history`；合併後再從最新 `main` 開始任務 5（#7）。
 
 目前 `/api/analyze` 明確回傳 `503`，Planner 亦拒絕舊分析路徑，避免使用無來源價格。任務 5（#7）須接上不可變行情快照後恢復分析；不要直接移除保護。行情頁可用。設計見 [ADR 0002](../adr/0002-market-quality-and-recovery.md)。
 
