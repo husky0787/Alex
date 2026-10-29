@@ -50,6 +50,29 @@ uv run --project backend/reporter --locked backend/reporter/package_docker.py
 
 The ingestion builder selects Linux wheels instead of copying a Windows environment. Researcher uses the **backend** build context and a Dockerfile-specific allowlist to exclude `.env`, credentials, `.venv` and private data. Reporter packaging includes both local shared packages.
 
+On a Linux builder whose proxy listens on localhost, export the proxy variables in the build shell and use host networking. Reporter forwards set proxy environment variables by name (without printing their values):
+
+```sh
+uv run --project backend/reporter --locked backend/reporter/package_docker.py --network host
+docker build --platform linux/amd64 --network host \
+  --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY \
+  --build-arg http_proxy --build-arg https_proxy --build-arg no_proxy \
+  -f backend/researcher/Dockerfile -t alex-researcher:task06 backend
+```
+
+The Docker daemon needs its own registry proxy configuration; build arguments only configure build steps. If the default Debian source is too slow, the Researcher build also accepts `--build-arg DEBIAN_MIRROR=https://<trusted-mirror>`; the mirror must serve both `/debian` and `/debian-security`. Debian package signature verification remains enabled. The default is `http://deb.debian.org`.
+
+After building, check actual Chromium/MCP navigation and source capture against an in-container fixture, with external networking disabled:
+
+```sh
+docker run --rm --network none --read-only --tmpfs /tmp:rw,size=512m \
+  -e AWS_EC2_METADATA_DISABLED=true -e PYTHONPATH=/app \
+  -v "$PWD/backend/tests/verify_research_container.py:/app/verify_research_container.py:ro" \
+  --entrypoint uv alex-researcher:task06 run --no-sync /app/verify_research_container.py
+```
+
+This checks FastAPI health, the installed browser and the real MCP response format. It does not invoke a model or validate AWS permissions, ingestion or a cloud report.
+
 Terraform 3 now declares the actual vector bucket/index in addition to the existing ordinary S3 bucket. Configure text and sources as non-filterable metadata, dimension 384 and cosine distance. Before applying to another account, inspect/import any manually created resources; changing index metadata/pooling is not an in-place migration. Never delete an existing index to make a plan succeed.
 
 The account's current state and remaining cloud acceptance steps are in `docs/verification/task-06-research-chain.md`. Do not deploy just the snapshot-dependent Reporter over an application still creating legacy jobs; coordinate the task 5 API/worker rollout or use an isolated acceptance function/job.

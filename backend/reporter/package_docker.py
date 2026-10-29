@@ -23,7 +23,7 @@ def run_command(cmd, cwd=None):
     return result.stdout
 
 
-def package_lambda():
+def package_lambda(network=None):
     """Package the Lambda function with all dependencies."""
 
     # Get the directory containing this script
@@ -60,6 +60,12 @@ def package_lambda():
         docker_user_args = (
             ["--user", f"{os.getuid()}:{os.getgid()}"] if os.name == "posix" else []
         )
+        network_args = ["--network", network] if network else []
+        proxy_args = []
+        for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
+                     "http_proxy", "https_proxy", "all_proxy", "no_proxy"):
+            if name in os.environ:
+                proxy_args.extend(["--env", name])
 
         # Use Docker to install dependencies for Lambda's architecture
         docker_cmd = [
@@ -67,6 +73,8 @@ def package_lambda():
             "run",
             "--rm",
             *docker_user_args,
+            *network_args,
+            *proxy_args,
             "--platform",
             "linux/amd64",
             "-v",
@@ -140,6 +148,7 @@ def deploy_lambda(zip_path):
 def main():
     parser = argparse.ArgumentParser(description="Package Reporter Lambda for deployment")
     parser.add_argument("--deploy", action="store_true", help="Deploy to AWS after packaging")
+    parser.add_argument("--network", help="Docker network; use host for a localhost proxy on Linux")
     args = parser.parse_args()
 
     # Check if Docker is available
@@ -150,7 +159,7 @@ def main():
         sys.exit(1)
 
     # Package the Lambda
-    zip_path = package_lambda()
+    zip_path = package_lambda(network=args.network)
 
     # Deploy if requested
     if args.deploy:
