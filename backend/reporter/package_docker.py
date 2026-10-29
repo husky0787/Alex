@@ -41,31 +41,23 @@ def package_lambda(network=None):
         # Export exact requirements from uv.lock (excluding the editable database package)
         print("Exporting requirements from uv.lock...")
         requirements_result = run_command(
-            ["uv", "export", "--locked", "--no-hashes", "--no-emit-project",
-             "--no-emit-package", "alex-database", "--no-emit-package", "alex-research"], cwd=str(reporter_dir)
+            ["uv", "export", "--locked", "--no-emit-project",
+             "--no-emit-package", "alex-database", "--no-emit-package", "alex-research",
+             "--no-emit-package", "pyperclip"], cwd=str(reporter_dir)
         )
 
-        # Filter out packages that don't work in Lambda
-        filtered_requirements = []
-        for line in requirements_result.splitlines():
-            # Skip pyperclip (clipboard library not needed in Lambda)
-            if line.startswith("pyperclip"):
-                print(f"Excluding from Lambda: {line}")
-                continue
-            filtered_requirements.append(line)
-
         req_file = temp_path / "requirements.txt"
-        req_file.write_text("\n".join(filtered_requirements))
+        req_file.write_text(requirements_result)
 
         docker_user_args = (
             ["--user", f"{os.getuid()}:{os.getgid()}"] if os.name == "posix" else []
         )
         network_args = ["--network", network] if network else []
-        proxy_args = []
+        environment_args = []
         for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
-                     "http_proxy", "https_proxy", "all_proxy", "no_proxy"):
+                     "http_proxy", "https_proxy", "all_proxy", "no_proxy", "PIP_INDEX_URL"):
             if name in os.environ:
-                proxy_args.extend(["--env", name])
+                environment_args.extend(["--env", name])
 
         # Use Docker to install dependencies for Lambda's architecture
         docker_cmd = [
@@ -74,7 +66,7 @@ def package_lambda(network=None):
             "--rm",
             *docker_user_args,
             *network_args,
-            *proxy_args,
+            *environment_args,
             "--platform",
             "linux/amd64",
             "-v",
@@ -87,7 +79,7 @@ def package_lambda(network=None):
             "/bin/bash",
             "public.ecr.aws/lambda/python:3.12",
             "-c",
-            """cd /build && pip install --target ./package -r requirements.txt && pip install --target ./package --no-deps /database /research""",
+            """cd /build && pip install --no-deps --require-hashes --target ./package -r requirements.txt && pip install --target ./package --no-deps /database /research""",
         ]
 
         run_command(docker_cmd)

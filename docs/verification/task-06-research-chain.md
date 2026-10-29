@@ -14,7 +14,7 @@ Status: local implementation ready for review; **cloud acceptance is not complet
 
 Checked `us-east-1` and `us-west-2`: no Alex SageMaker endpoints, no vector buckets and no ECR repositories. The east-region Lambda inventory contains existing API and analysis workers, but no ingestion or Researcher function. Ordinary S3 buckets are distinct from S3 vector buckets. Private account identifiers and full inventory are kept locally, not committed.
 
-The current IAM identity cannot query Cost Explorer or list CodeBuild projects. Docker/Podman are absent and WSL is not installed, so the Researcher image cannot currently be built here. No new paid AWS resources or model invocations were created during this work.
+The current IAM identity cannot query Cost Explorer or list CodeBuild projects. The Windows workstation has no Docker/Podman/WSL. On 2026-10-29 a user-provided Linux builder became available through Tailscale SSH. No new paid AWS resources or model invocations were created during this work.
 
 ## Local behavior
 
@@ -23,7 +23,15 @@ The current IAM identity cannot query Cost Explorer or list CodeBuild projects. 
 - Reporter retrieves before model execution, preserves evidence even if the model skips its optional tool, and records unavailable research explicitly. Failed/empty retrieval produces a deterministic holdings summary without model-generated research claims.
 - SageMaker flat, single-batch and token-level feature-extraction output shapes use the same adapter for ingestion and query; malformed dimensions and nonnumeric values fail explicitly.
 
-Verified locally: 50 PostgreSQL/pipeline integration tests, 4 ingestion/search tests, 2 Researcher receipt tests (including four failure scenarios), 14 worker tests across Planner/Reporter/Charter/Retirement, and 11 API contract tests passed (81 total). Terraform 3 initialization and validation passed; the Linux ingestion zip built successfully. The Researcher image and Reporter Docker package are not built because Docker is unavailable. These local tests substitute external transports and are not cloud end-to-end evidence.
+Verified locally: 50 PostgreSQL/pipeline integration tests, 4 ingestion/search tests, 2 Researcher receipt tests (including four failure scenarios), 14 worker tests across Planner/Reporter/Charter/Retirement, and 11 API contract tests passed (81 total). Terraform 3 initialization and validation passed; the Linux ingestion zip built successfully. These local tests substitute external transports and are not cloud end-to-end evidence.
+
+## Remote build verification, 2026-10-29
+
+Linux/amd64 Docker 29.1.3 and Buildx 0.30.1 are available. The isolated checkout contains no copied AWS credentials. Registry proxy configuration and public DNS were needed before downloads could start; the existing seven containers recovered after the authorized Docker restarts.
+
+Commit `33174d1` adds optional Reporter proxy forwarding/host networking, optional Researcher Debian mirror selection, and an offline real Chromium/MCP fixture smoke. Both review axes found zero actionable issues. Packaging CLI help and two Researcher receipt tests passed. The two tests are reruns of the existing 81-test suite, not additional cases.
+
+**Builds and real-container smoke are still pending.** Do not treat the smoke script's presence or a successful download as proof of a working image. Its run must show health, Chromium navigation and source capture; the Reporter artifact must pass Linux Python 3.12 import and uncompressed-size checks.
 
 ## Cloud acceptance still required
 

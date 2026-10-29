@@ -48,7 +48,7 @@ docker build --platform linux/amd64 -f backend/researcher/Dockerfile -t alex-res
 uv run --project backend/reporter --locked backend/reporter/package_docker.py
 ```
 
-The ingestion builder selects Linux wheels instead of copying a Windows environment. Researcher uses the **backend** build context and a Dockerfile-specific allowlist to exclude `.env`, credentials, `.venv` and private data. Reporter packaging includes both local shared packages.
+The ingestion builder selects Linux wheels instead of copying a Windows environment. Researcher uses the **backend** build context and a Dockerfile-specific allowlist to exclude `.env`, credentials, `.venv` and private data. Reporter packaging includes both local shared packages and installs the exported third-party dependencies with their locked hashes, without resolving extra dependencies. The unused clipboard package remains excluded.
 
 On a Linux builder whose proxy listens on localhost, export the proxy variables in the build shell and use host networking. Reporter forwards set proxy environment variables by name (without printing their values):
 
@@ -61,6 +61,8 @@ docker build --platform linux/amd64 --network host \
 ```
 
 The Docker daemon needs its own registry proxy configuration; build arguments only configure build steps. If the default Debian source is too slow, the Researcher build also accepts `--build-arg DEBIAN_MIRROR=https://<trusted-mirror>`; the mirror must serve both `/debian` and `/debian-security`. Debian package signature verification remains enabled. The default is `http://deb.debian.org`.
+
+Reporter also forwards an explicitly set `PIP_INDEX_URL` for builders that need a different package index. Downloaded third-party files must still match the hashes exported from `uv.lock`. Researcher installs full Chromium, which MCP selects explicitly; the unused additional headless-shell binary is skipped using Playwright's [`--no-shell` option](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
 
 After building, check actual Chromium/MCP navigation and source capture against an in-container fixture, with external networking disabled:
 

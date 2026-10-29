@@ -20,8 +20,8 @@ RUN sed -i "s|http://deb.debian.org|${DEBIAN_MIRROR}|g" /etc/apt/sources.list.d/
     && npm install -g @playwright/mcp@0.0.75 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Chromium and its Linux dependencies for Playwright.
-RUN npx -y playwright install --with-deps chromium
+# MCP launches the full Chromium executable; a second headless-shell binary is unused.
+RUN npx -y playwright install --with-deps --no-shell chromium
 
 # Install uv for Python dependency management inside the container.
 RUN pip install uv
