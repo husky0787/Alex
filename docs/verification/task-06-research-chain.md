@@ -1,6 +1,6 @@
 # Task 6: research-chain verification
 
-Status: PR #19 merged on 2026-10-30; local implementation and real-container checks pass; **cloud acceptance is not complete**. On 2026-10-27 the user explicitly chose to retain local work and defer cloud acceptance. Issue #8 must remain open.
+Status: PR #19 merged on 2026-10-30; local implementation and real-container checks pass; **cloud acceptance is not complete**. The user explicitly deferred cloud acceptance on 2026-10-27 and reaffirmed that decision on 2026-10-30 after reviewing the prepared $2.18 scenario. Issue #8 must remain open. Container/build follow-up is preserved in [draft PR #20](https://github.com/husky0787/Alex/pull/20).
 
 ## Budget evidence, 2026-10-27
 
