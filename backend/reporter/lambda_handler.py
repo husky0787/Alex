@@ -7,7 +7,8 @@ import json
 import asyncio
 import logging
 from typing import Dict, Any
-from datetime import datetime
+from datetime import datetime, UTC
+from research_chain import retrieve_evidence, evidence_markdown
 
 from agents import Agent, Runner, trace
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
@@ -28,7 +29,7 @@ from src import Database
 from src.snapshots import load_snapshot, portfolio_from_snapshot, pricing_markdown
 
 from templates import REPORTER_INSTRUCTIONS
-from agent import create_agent, ReporterContext
+from agent import create_agent, ReporterContext, format_portfolio_for_analysis
 from observability import observe
 
 logger = logging.getLogger()
@@ -52,8 +53,21 @@ async def run_reporter_agent(
 ) -> Dict[str, Any]:
     """Run the reporter agent to generate analysis."""
 
-    # Create agent with tools and context
-    model, tools, task, context = create_agent(job_id, portfolio_data, user_data, db)
+    symbols = sorted({p["symbol"] for a in portfolio_data["accounts"] for p in a.get("positions", [])})
+    research = retrieve_evidence(symbols)
+    basis = pricing_markdown(portfolio_data["price_snapshot"]) + "\n\n" + evidence_markdown(research)
+    if research["status"] == "unavailable":
+        # Do not ask the model to invent a replacement research narrative.
+        content = basis + "\n\n" + format_portfolio_for_analysis(portfolio_data, user_data)
+        success = db.jobs.update_report(job_id, {
+            "content": content, "research": research,
+            "price_snapshot_sha256": portfolio_data["price_snapshot"]["sha256"],
+            "generated_at": datetime.now(UTC).isoformat(), "agent": "reporter"})
+        return {"success": success, "research_status": "unavailable",
+                "message": "Research unavailable; holdings summary stored" if success else "Report failed to save",
+                "final_output": content}
+
+    model, tools, task, context = create_agent(job_id, portfolio_data, user_data, db, research=research)
 
     # Run agent with context
     with trace("Reporter Agent"):
@@ -84,9 +98,10 @@ async def run_reporter_agent(
 
         # Save the report to database
         report_payload = {
-            "content": pricing_markdown(portfolio_data["price_snapshot"]) + "\n\n" + response,
+            "content": basis + "\n\n" + response,
+            "research": research,
             "price_snapshot_sha256": portfolio_data["price_snapshot"]["sha256"],
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(UTC).isoformat(),
             "agent": "reporter",
         }
 
@@ -97,10 +112,11 @@ async def run_reporter_agent(
 
         return {
             "success": success,
+            "research_status": research["status"],
             "message": "Report generated and stored"
             if success
             else "Report generated but failed to save",
-            "final_output": result.final_output,
+            "final_output": report_payload["content"],
         }
 
 

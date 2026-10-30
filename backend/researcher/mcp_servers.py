@@ -6,6 +6,10 @@ import json
 import logging
 import os
 import threading
+import re
+import tempfile
+from datetime import datetime, UTC
+from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -32,7 +36,24 @@ def _trim_for_log(value: Any, max_length: int = PLAYWRIGHT_STDERR_MAX_LENGTH) ->
     return f"{text[:max_length]}... [trimmed {len(text) - max_length} chars]"
 
 
-class LoggingMCPServerStdio(MCPServerStdio):
+class TrackedMCPServerStdio(MCPServerStdio):
+    """Record URLs/times from successful browser navigation, outside model output."""
+    def __init__(self, *args, sources=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.sources = sources if sources is not None else {}
+
+    async def call_tool(self, tool_name, arguments):
+        result = await super().call_tool(tool_name, arguments)
+        if tool_name == "browser_navigate" and not result.isError:
+            text = "\n".join(getattr(part, "text", "") for part in result.content)
+            # Playwright reports the final URL after redirects in its page header.
+            match = re.search(r"^- Page URL: (https?://\S+)\s*$", text, re.MULTILINE)
+            if match:
+                self.sources[match.group(1)] = datetime.now(UTC).isoformat()
+        return result
+
+
+class LoggingMCPServerStdio(TrackedMCPServerStdio):
     @asynccontextmanager
     async def create_streams(self):
         read_fd, write_fd = os.pipe()
@@ -65,7 +86,7 @@ class LoggingMCPServerStdio(MCPServerStdio):
             stderr_thread.join(timeout=1)
 
 
-def create_playwright_mcp_server(timeout_seconds=120):
+def create_playwright_mcp_server(timeout_seconds=120, sources=None):
     """Create a Playwright MCP server instance for web browsing.
 
     Args:
@@ -97,7 +118,7 @@ def create_playwright_mcp_server(timeout_seconds=120):
         )
         args.extend(["--executable-path", chrome_path])
 
-    config_path = "/tmp/playwright-mcp.config.json"
+    config_path = str(Path(tempfile.gettempdir()) / "playwright-mcp.config.json")
     config = {
         "browser": {
             "launchOptions": {
@@ -134,8 +155,9 @@ def create_playwright_mcp_server(timeout_seconds=120):
 
     if MCP_LOGGING_ENABLED:
         return LoggingMCPServerStdio(
+            sources=sources,
             params=params,
             client_session_timeout_seconds=timeout_seconds,
         )
 
-    return MCPServerStdio(params=params, client_session_timeout_seconds=timeout_seconds)
+    return TrackedMCPServerStdio(params=params, client_session_timeout_seconds=timeout_seconds, sources=sources)

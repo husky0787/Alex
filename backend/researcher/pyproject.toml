@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "alex-research",
     "boto3>=1.40.6",
     "fastapi>=0.116.1",
     "httpx>=0.28.1",
@@ -16,3 +17,6 @@ dependencies = [
     "tenacity>=9.1.2",
     "uvicorn>=0.35.0",
 ]
+
+[tool.uv.sources]
+alex-research = { path = "../research", editable = true }

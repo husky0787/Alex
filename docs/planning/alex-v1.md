@@ -18,7 +18,7 @@
 
 任務 5 已新增建立工作時固定的持倉與行情快照。設定完成時 `/api/analyze` 可建立使用可信價格的分析工作；缺價或不支援的必要標的會回傳 422，未設定服務仍回傳 503。四個分析 agents 均讀取同一份快照，舊工作無快照仍會被拒絕。見 [ADR 0004](../adr/0004-analysis-price-snapshots.md) 與 [驗證紀錄](../verification/task-05-analysis-price-snapshots.md)。新程式尚未部署 AWS。
 
-任務 5 已推送至 [Draft PR #18](https://github.com/husky0787/Alex/pull/18)。換機接續請 checkout `feat/task-05-analysis-price-provenance`；合併後從最新 `main` 建立任務 6（#8）分支，核對研究鏈與檢索結果。
+任務 5 已於 PR [#18](https://github.com/husky0787/Alex/pull/18) 合併，commit `70b3201a7f3135feb277ac6b891787c1dbfc4e76`。任務 6 的本機研究來源追蹤、寫入回執與不可用處理位於 `feat/task-06-research-chain`；換機接續請 checkout 此分支。使用者於 2026-10-27 選擇延後雲端驗收，任務 6 尚未完成，見 [驗證及接續步驟](../verification/task-06-research-chain.md)。
 
 換機時 clone／更新本儲存庫，安裝 Git、GitHub CLI、Python 3.12、uv、Node.js 與 PostgreSQL 工具，依 [行情模組 README](../../backend/market_data/README.md) 安裝相依套件、設定 `PG_BIN`、遷移及執行測試。文件中的 `D:/learn/...` 工具路徑只適用原電腦，請使用新電腦的安裝位置。完整應用另外需要既有 Clerk／AWS 設定。
 
@@ -26,7 +26,7 @@
 
 ## 已確認的條件
 
-- 使用者表示 AWS 剩餘 promotional credit 約 US$100；尚未核對帳單、有效期限及適用服務。
+- 2026-10-27 核對 AWS API／使用者 Billing 畫面：預估剩餘 credit US$114.63，兩筆均於 2026-11-30 到期；本月至今 US$2.41，預測 US$2.90。所需研究鏈服務列於兩筆適用清單。雲端恢復估算及實際驗收仍待完成。
 - 希望一個月內完成，可視進度加速；以 2026-11-25 作為目標日期。
 - 專案來源為 husky0787/Alex，本機工作目錄為 alex-husky0787。
 - 目標為可展示的個人專案，涵蓋既有 AI 應用、資料工程和 Kubernetes。
@@ -73,7 +73,7 @@ AWS 官方 EKS 標準支援價格為每叢集每小時 US$0.10：
 
 ## 執行時需核對
 
-- 按已確認的規格、驗收條件和 GitHub 依賴執行；先完成任務 5 的 PR 審查與合併，再從更新後的 `main` 建立任務 6 分支。#9 的前置依賴亦已完成。
+- 按已確認的規格、驗收條件和 GitHub 依賴執行；任務 5 已合併，接續任務 6 分支完成審查及後續雲端驗收。#9 的前置依賴亦已完成，但目前沒有開始任務 7。
 - 核對可用的行情供應商方案與帳號能力，再確定排程和回補方式。
 - 實作規格中已確認的缺漏、過期及研究不可用行為，留下驗證證據。
 

@@ -1,5 +1,6 @@
 """Run once per agent; real handlers/adapters, substituted AWS and paid model boundaries."""
 import importlib
+import io
 import json
 import os
 from pathlib import Path
@@ -10,6 +11,7 @@ from unittest.mock import patch
 
 AGENT = os.environ.get("SNAPSHOT_AGENT", "planner")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / AGENT))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "research"))
 
 
 class SnapshotWorkerTests(unittest.TestCase):
@@ -23,6 +25,7 @@ class SnapshotWorkerTests(unittest.TestCase):
             "AURORA_SECRET_ARN": "arn:aws:secretsmanager:us-east-1:123456789012:secret:test",
             "LANGFUSE_SECRET_KEY": "", "LANGFUSE_PUBLIC_KEY": "", "OPENAI_API_KEY": "",
             "OTEL_SDK_DISABLED": "true", "MOCK_LAMBDAS": "false",
+            "VECTOR_BUCKET": "test-research",
         }
         for guard in (patch.dict(os.environ, environment), patch("dotenv.load_dotenv", return_value=False),
                       patch("httpx.HTTPTransport.handle_request", side_effect=AssertionError("HTTP forbidden"))):
@@ -43,8 +46,19 @@ class SnapshotWorkerTests(unittest.TestCase):
         self.job_id = "123e4567-e89b-12d3-a456-426614174002"
         self.job = {"id": self.job_id, "clerk_user_id": "user_alice", "request_payload": {"price_snapshot": self.snapshot}}
         self.writes, self.prompts = [], []
+        self.research_error = None
+        self.research_vectors = [{"key": "known-research", "distance": 0.1, "metadata": {
+            "research_id": "known-research", "topic": "Apple", "text": "Apple published its quarterly results.",
+            "sources_json": json.dumps([{"url": "https://www.apple.com/newsroom/", "fetched_at": "2026-10-26T12:00:00+00:00"}])}}]
 
         def aws_call(client, operation, params):
+            if operation == "InvokeEndpoint" and AGENT == "reporter":
+                if self.research_error:
+                    raise self.research_error
+                return {"Body": io.BytesIO(json.dumps([[0.25] * 384]).encode())}
+            if operation == "QueryVectors" and AGENT == "reporter":
+                self.assertEqual(len(params["queryVector"]["float32"]), 384)
+                return {"vectors": self.research_vectors}
             if operation != "ExecuteStatement":
                 raise AssertionError(f"Unexpected AWS operation {operation}")
             sql = params["sql"].strip()
@@ -122,6 +136,30 @@ class SnapshotWorkerTests(unittest.TestCase):
         self.assertNotIn("STALE", self.prompts[0])
         self.assertEqual(json.dumps(self.snapshot, sort_keys=True), original)
         self.assertTrue(all("request_payload" not in write for write in self.writes))
+
+    @unittest.skipUnless(AGENT == "reporter", "Reporter research contract")
+    def test_report_preserves_retrieved_sources_even_when_model_skips_optional_tool(self):
+        response = self.handler.lambda_handler({"job_id": self.job_id}, None)
+        self.assertEqual(response["statusCode"], 200, response)
+        report = json.loads(next(row["report_payload"] for row in self.writes if "report_payload" in row))
+        self.assertEqual(report["research"]["status"], "available")
+        self.assertEqual(report["research"]["results"][0]["id"], "known-research")
+        for expected in ("known-research", "https://www.apple.com/newsroom/", "2026-10-26T12:00:00+00:00"):
+            self.assertIn(expected, report["content"])
+            self.assertIn(expected, self.prompts[0])
+
+    @unittest.skipUnless(AGENT == "reporter", "Reporter research contract")
+    def test_unavailable_research_is_explicit_and_cannot_generate_fabricated_basis(self):
+        for error in (None, RuntimeError("service unavailable")):
+            self.writes.clear(); self.prompts.clear()
+            self.research_vectors, self.research_error = [], error
+            response = self.handler.lambda_handler({"job_id": self.job_id}, None)
+            self.assertEqual(response["statusCode"], 200, response)
+            report = json.loads(next(row["report_payload"] for row in self.writes if "report_payload" in row))
+            self.assertEqual(report["research"]["status"], "unavailable")
+            self.assertIn("Research unavailable", report["content"])
+            self.assertIn("105", report["content"])
+            self.assertEqual(self.prompts, [])
 
 
 if __name__ == "__main__":

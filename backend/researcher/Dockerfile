@@ -2,6 +2,7 @@ FROM public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0 AS lambda-adapter
 FROM python:3.12-slim
 
 ARG INSTALL_BUILD_ESSENTIAL=false
+ARG DEBIAN_MIRROR=http://deb.debian.org
 
 WORKDIR /app
 
@@ -10,7 +11,8 @@ ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
     XDG_CACHE_HOME=/tmp/.cache
 
 # Install Node.js, build tools, and the Playwright MCP server.
-RUN apt-get update \
+RUN sed -i "s|http://deb.debian.org|${DEBIAN_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
+    && apt-get update \
     && apt-get install -y curl \
     && if [ "$INSTALL_BUILD_ESSENTIAL" = "true" ]; then apt-get install -y build-essential; fi \
     && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -25,12 +27,13 @@ RUN npx -y playwright install --with-deps chromium
 RUN pip install uv
 
 # Copy dependency metadata first so Docker can cache the install layer.
-COPY pyproject.toml uv.lock ./
+COPY researcher/pyproject.toml researcher/uv.lock ./
+COPY research /research
 RUN uv sync --frozen --no-install-project
 ENV PATH="/app/.venv/bin:$PATH"
 
 # Copy the application code.
-COPY *.py ./
+COPY researcher/*.py ./
 
 # Add the Lambda Web Adapter so Lambda can proxy HTTP requests to uvicorn.
 COPY --from=lambda-adapter /lambda-adapter /opt/extensions/lambda-adapter
