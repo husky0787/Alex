@@ -41,9 +41,13 @@ async def main():
             result = await browser.call_tool("browser_navigate", {"url": url})
             text = "\n".join(getattr(part, "text", "") for part in result.content)
             assert not result.isError, text
-            assert "Known research fixture 4137" in text, text
             assert url in sources, f"Browser source not captured: {text}"
             assert sources[url].endswith("+00:00"), sources
+            # Navigation may return a file link; the snapshot tool returns page text.
+            snapshot = await browser.call_tool("browser_snapshot", {})
+            snapshot_text = "\n".join(getattr(part, "text", "") for part in snapshot.content)
+            assert not snapshot.isError, snapshot_text
+            assert "Known research fixture 4137" in snapshot_text, snapshot_text
     finally:
         web.shutdown()
         web.server_close()

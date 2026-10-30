@@ -44,7 +44,7 @@ The old course smoke scripts now use this same contract. `backend/ingest/test_in
 
 ```text
 uv run --project backend/ingest --locked backend/ingest/package.py
-docker build --platform linux/amd64 -f backend/researcher/Dockerfile -t alex-researcher:task06 backend
+docker build --platform linux/amd64 --provenance=false -f backend/researcher/Dockerfile -t alex-researcher:task06 backend
 uv run --no-project backend/reporter/package_docker.py
 ```
 
@@ -54,7 +54,7 @@ On a Linux builder whose proxy listens on localhost, export the proxy variables 
 
 ```sh
 uv run --no-project backend/reporter/package_docker.py --network host
-docker build --platform linux/amd64 --network host \
+docker build --platform linux/amd64 --provenance=false --network host \
   --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY \
   --build-arg http_proxy --build-arg https_proxy --build-arg no_proxy \
   -f backend/researcher/Dockerfile -t alex-researcher:task06 backend
@@ -71,6 +71,8 @@ Researcher's `browser-deps` target separates system dependencies from the browse
 If the initial `pip install uv` download times out, Researcher also accepts `--build-arg PIP_INDEX_URL=https://<trusted-index>/simple`. This only selects the bootstrap index; application dependencies still use `uv sync --frozen` and the committed lockfile.
 
 After building, check actual Chromium/MCP navigation and source capture against an in-container fixture, with external networking disabled:
+
+The Lambda image build disables provenance attestations as required by [AWS's container build instructions](https://docs.aws.amazon.com/lambda/latest/dg/python-image.html). This avoids publishing an attestation-bearing manifest list to Lambda. The smoke reads content with `browser_snapshot` after navigation, matching the Researcher's instructions; navigation alone can return a snapshot file link.
 
 ```sh
 docker run --rm --network none --read-only --tmpfs /tmp:rw,size=512m \
