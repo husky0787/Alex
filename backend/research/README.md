@@ -68,6 +68,8 @@ For parallel Reporter dependency installation, pass `--uv-binary /path/to/linux-
 
 Researcher's `browser-deps` target separates system dependencies from the browser download so retries reuse the completed layer. A trusted cache containing the official Chromium archive at its original relative URL can be selected with `--build-arg PLAYWRIGHT_CHROMIUM_DOWNLOAD_HOST=<cache-url>`. Omit this argument to use Playwright's normal download source. This build argument is not a runtime proxy setting.
 
+If the initial `pip install uv` download times out, Researcher also accepts `--build-arg PIP_INDEX_URL=https://<trusted-index>/simple`. This only selects the bootstrap index; application dependencies still use `uv sync --frozen` and the committed lockfile.
+
 After building, check actual Chromium/MCP navigation and source capture against an in-container fixture, with external networking disabled:
 
 ```sh

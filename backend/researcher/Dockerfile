@@ -29,6 +29,7 @@ ARG PLAYWRIGHT_CHROMIUM_DOWNLOAD_HOST
 RUN npx -y playwright install --no-shell chromium
 
 # Install uv for Python dependency management inside the container.
+ARG PIP_INDEX_URL=https://pypi.org/simple
 RUN pip install uv
 
 # Copy dependency metadata first so Docker can cache the install layer.
