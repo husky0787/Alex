@@ -45,15 +45,15 @@ The old course smoke scripts now use this same contract. `backend/ingest/test_in
 ```text
 uv run --project backend/ingest --locked backend/ingest/package.py
 docker build --platform linux/amd64 -f backend/researcher/Dockerfile -t alex-researcher:task06 backend
-uv run --project backend/reporter --locked backend/reporter/package_docker.py
+uv run --no-project backend/reporter/package_docker.py
 ```
 
-The ingestion builder selects Linux wheels instead of copying a Windows environment. Researcher uses the **backend** build context and a Dockerfile-specific allowlist to exclude `.env`, credentials, `.venv` and private data. Reporter packaging includes both local shared packages and installs the exported third-party dependencies with their locked hashes, without resolving extra dependencies. The unused clipboard package remains excluded.
+The ingestion builder selects Linux wheels instead of copying a Windows environment. Researcher uses the **backend** build context and a Dockerfile-specific allowlist to exclude `.env`, credentials, `.venv` and private data. Reporter packaging includes both local shared packages and installs the exported third-party dependencies with their locked hashes, without resolving extra dependencies. Reporter removes the unused `pydantic-ai` dependency and declares `logfire` directly for its observability integration.
 
 On a Linux builder whose proxy listens on localhost, export the proxy variables in the build shell and use host networking. Reporter forwards set proxy environment variables by name (without printing their values):
 
 ```sh
-uv run --project backend/reporter --locked backend/reporter/package_docker.py --network host
+uv run --no-project backend/reporter/package_docker.py --network host
 docker build --platform linux/amd64 --network host \
   --build-arg HTTP_PROXY --build-arg HTTPS_PROXY --build-arg NO_PROXY \
   --build-arg http_proxy --build-arg https_proxy --build-arg no_proxy \
@@ -63,6 +63,10 @@ docker build --platform linux/amd64 --network host \
 The Docker daemon needs its own registry proxy configuration; build arguments only configure build steps. If the default Debian source is too slow, the Researcher build also accepts `--build-arg DEBIAN_MIRROR=https://<trusted-mirror>`; the mirror must serve both `/debian` and `/debian-security`. Debian package signature verification remains enabled. The default is `http://deb.debian.org`.
 
 Reporter also forwards an explicitly set `PIP_INDEX_URL` for builders that need a different package index. Downloaded third-party files must still match the hashes exported from `uv.lock`. Researcher installs full Chromium, which MCP selects explicitly; the unused additional headless-shell binary is skipped using Playwright's [`--no-shell` option](https://playwright.dev/docs/browsers#chromium-new-headless-mode).
+
+For parallel Reporter dependency installation, pass `--uv-binary /path/to/linux-amd64/uv`. The executable is mounted read-only and runs against the container's Python 3.12, with the same locked hashes and optional `PIP_INDEX_URL`. Without this option the builder uses pip. The packaging driver itself needs only the standard library; `--no-project` avoids installing the agent on the host. Set `UV_PYTHON` to an existing host interpreter if the checkout's preferred Python is unavailable.
+
+Researcher's `browser-deps` target separates system dependencies from the browser download so retries reuse the completed layer. A trusted cache containing the official Chromium archive at its original relative URL can be selected with `--build-arg PLAYWRIGHT_CHROMIUM_DOWNLOAD_HOST=<cache-url>`. Omit this argument to use Playwright's normal download source. This build argument is not a runtime proxy setting.
 
 After building, check actual Chromium/MCP navigation and source capture against an in-container fixture, with external networking disabled:
 
