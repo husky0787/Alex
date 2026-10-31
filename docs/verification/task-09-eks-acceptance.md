@@ -40,4 +40,10 @@ Final local checks passed: **62 PostgreSQL integration tests, 13 API contracts, 
 
 ## Recovery, cleanup and cost
 
-Final alarm recovery and cleanup are still being observed; do not interpret this draft section as completion. Cleanup is limited to the separately marked acceptance database/roles and the 67-resource task state after evidence is archived. The preflight credit was US$111.67 and the conservative complete scenario allocation was US$20. Actual AWS billing has not yet been reconciled; the US$20 estimate is not the measured charge or a hard spending cap.
+The real ALB alarm returned to OK at 09:37:38 UTC, verified at 09:37:44 UTC. After archiving evidence and verifying all 22 S3 object hashes, cleanup removed only the marked acceptance database/roles and task-owned storage contents. Terraform finished at 09:56:26 UTC: **0 added, 0 changed, 67 destroyed**; its state is empty.
+
+The independent AWS audit completed at 09:59:48 UTC. The EKS cluster, both nodes and their volumes, ALB, CloudFront distribution/VPC origin, ECR repository, S3 bucket, Reporter Lambda and task queues were removed. No new security groups remained. The original `alex` database is present; `alex_task09` and its two database roles are absent. All six pre-existing Lambda modification timestamps and both pre-existing EC2 instance states match the baseline. The remote builder's 11 unrelated containers remain running.
+
+Two task Secrets Manager secrets are scheduled for deletion with a seven-day recovery window; they have not been forcibly purged. AWS-managed service-linked roles are outside the task state and are preserved. Private evidence and local build artifacts remain available; the acceptance endpoint is no longer live.
+
+The final review strengthened repeated manual-Job identity and full Pod-readiness checks; these changes passed local regression tests after the live drills, without claiming another cloud run. The preflight credit was US$111.67 and the conservative complete scenario allocation was US$20. The post-cleanup credit response showed US$111.45; billing lag and concurrent account usage prevent attributing that difference to this task. Actual AWS billing has not yet been reconciled; the US$20 estimate is not the measured charge or a hard spending cap.
