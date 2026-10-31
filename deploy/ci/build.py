@@ -9,6 +9,7 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / '.local/ci/artifacts'
+PYTHON_IMAGE = 'docker.io/library/python:3.12-slim@sha256:1148dbb014615300fa7e713b2f94f550c0d1c69780c0805f84f093ceee34dd0b'
 
 
 def run(*args):
@@ -26,7 +27,7 @@ def main():
     previous = run('git', 'rev-parse', 'HEAD^')
     if os.environ.get('GITHUB_SHA') != commit:
         raise SystemExit('Checkout must exactly match workflow commit')
-    manifest = {'commit': commit, 'previous_commit': previous, 'images': {}}
+    manifest = {'commit': commit, 'previous_commit': previous, 'base_image': PYTHON_IMAGE, 'images': {}}
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         archive = root / 'parent.tar'
@@ -37,6 +38,7 @@ def main():
                                        ('candidate', commit, ROOT / 'backend')]:
             tag = f'alex-api:{revision}'
             subprocess.run(['docker', 'build', '--platform=linux/amd64',
+                            '--build-arg', 'PYTHON_IMAGE=' + PYTHON_IMAGE,
                             '--label', f'org.opencontainers.image.revision={revision}',
                             '-f', str(source / 'api/Dockerfile'), '-t', tag, str(source)], check=True)
             target = OUT / f'{name}.tar'
