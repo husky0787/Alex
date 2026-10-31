@@ -26,14 +26,14 @@ class CloudBootstrapTests(unittest.TestCase):
                 module.initialize(args,api,etl,root/'backend/database/migrations/001_schema.sql')
                 with self.assertRaisesRegex(ValueError,'already exists'):
                     module.initialize(args,api,etl,root/'backend/database/migrations/001_schema.sql')
-                with psycopg.connect(dbname='alex_task09',**{**args,'user':api['username']}) as connection:
+                with psycopg.connect(dbname='alex_task09',**{**args,'user':api['username'],'password':api['password']}) as connection:
                     self.assertEqual(connection.execute('SELECT count(*) FROM instruments').fetchone()[0],20)
                     connection.execute('SELECT * FROM daily_prices LIMIT 1')
                     with self.assertRaises(psycopg.errors.InsufficientPrivilege):
                         connection.execute('DELETE FROM daily_prices')
                     with self.assertRaises(psycopg.errors.InsufficientPrivilege):
                         connection.execute('CREATE TABLE forbidden(id int)')
-                with psycopg.connect(dbname='alex_task09',**{**args,'user':etl['username']}) as connection:
+                with psycopg.connect(dbname='alex_task09',**{**args,'user':etl['username'],'password':etl['password']}) as connection:
                     connection.execute('DELETE FROM daily_prices')
                     with self.assertRaises(psycopg.errors.InsufficientPrivilege):
                         connection.execute('DELETE FROM users')
