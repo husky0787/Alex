@@ -78,11 +78,33 @@ def wait_terminal(timeout=3300):
     raise TimeoutError('Stack did not reach a terminal state; recovery must continue')
 
 
+def preflight_roles():
+    roles = [os.environ['ALEX_CD_NODE_ROLE'], os.environ['ALEX_CD_CLUSTER_ROLE']]
+    actions = ['iam:GetRole', 'iam:ListAttachedRolePolicies']
+    response = aws('iam', 'simulate-principal-policy',
+        PolicySourceArn=os.environ['ALEX_CD_CF_ROLE_ARN'], ActionNames=actions, ResourceArns=roles)
+    decisions = {}
+    for item in response['EvaluationResults']:
+        for resource in item.get('ResourceSpecificResults', [item]):
+            decisions[(item['EvalActionName'], resource['EvalResourceName'])] = (
+                resource.get('EvalResourceDecision', item['EvalDecision']) == 'allowed')
+    missing = [f'{action} on {role.rsplit("/", 1)[-1]}' for action in actions for role in roles
+               if not decisions.get((action, role), False)]
+    if missing:
+        raise RuntimeError('CloudFormation role prerequisites denied or missing before provisioning: ' + ', '.join(missing))
+    if any(item['EvalDecision'] != 'allowed' for item in response['EvaluationResults']):
+        raise RuntimeError('Aggregate IAM role-inspection authorization denied before provisioning')
+    evidence('preflight.json', {'role_inspection_allowed': True, 'roles': ['node', 'cluster'],
+        'actions': actions, 'limitation': 'IAM simulation; live provisioning still verifies service behavior'})
+    print('IAM role-inspection prerequisites allowed for both dedicated roles', flush=True)
+
+
 def create(release_id):
     if stack() is not None:
         raise RuntimeError('An earlier stack remains; recover it before releasing')
     if not re.fullmatch(r'[0-9]+-[0-9]+', release_id):
         raise ValueError('Invalid release ID')
+    preflight_roles()
     with urllib.request.urlopen('https://checkip.amazonaws.com', timeout=20) as response:
         address = ipaddress.IPv4Address(response.read().decode().strip())
     expires = datetime.now(timezone.utc) + timedelta(hours=2)
@@ -174,12 +196,14 @@ def cleanup(release_id=None, completed_run=None, completed_attempt=None, expired
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=['create', 'cleanup', 'recover'])
+    parser.add_argument('action', choices=['preflight', 'create', 'cleanup', 'recover'])
     parser.add_argument('--release-id')
     parser.add_argument('--completed-run')
     parser.add_argument('--completed-attempt')
     args = parser.parse_args()
-    if args.action == 'create':
+    if args.action == 'preflight':
+        preflight_roles()
+    elif args.action == 'create':
         create(args.release_id)
     elif args.action == 'cleanup':
         if not args.release_id:
