@@ -1,6 +1,7 @@
 """One entry point for daily pulls and bounded historical date ranges."""
 from datetime import date, datetime, timedelta, timezone
 import hashlib
+import json
 from email.utils import parsedate_to_datetime
 import math
 import time
@@ -140,8 +141,11 @@ class DailyPricePipeline:
         try:
             bars, rejected = normalize_bars(body, symbol, start, end, now)
         except InvalidMarketData as error:
+            rejected = [{"row_index": None, "reason": str(error)}]
+            if not self._save_quarantine(run_id, rejected):
+                return self.repository.finish(run_id, "failed", self.clock(), error_code="quarantine_storage_failed")
             return self.repository.finish(run_id, "failed", self.clock(), error_code=str(error),
-                                          rejected=[{"row_index": None, "reason": str(error)}])
+                                          rejected=rejected)
         if not bars and not rejected:
             return self.repository.finish(run_id, "unavailable", self.clock(), error_code="no_bars")
         dates = {bar["trade_date"] for bar in bars}
@@ -153,6 +157,8 @@ class DailyPricePipeline:
             completed_through = day
         missing_count = len(set(expected) - dates)
         status = "failed" if not bars else "partial" if rejected or missing_count else "succeeded"
+        if rejected and not self._save_quarantine(run_id, rejected):
+            return self.repository.finish(run_id, "failed", self.clock(), error_code="quarantine_storage_failed")
         try:
             return self.repository.finish(run_id, status, self.clock(), bars=bars, rejected=rejected,
                                           completed_through=completed_through, missing_count=missing_count,
@@ -161,3 +167,28 @@ class DailyPricePipeline:
             # The load transaction has rolled back. If PostgreSQL itself is
             # unreachable this update also fails, leaving a recoverable run.
             return self.repository.finish(run_id, "failed", self.clock(), error_code="database_load_failed")
+
+    def _save_quarantine(self, run_id, rejected):
+        run = self.repository.get_run(run_id)
+        body = json.dumps({'run_id':run_id,'raw_key':run['raw_key'],
+                           'raw_sha256':run['raw_sha256'],'rejected':rejected},sort_keys=True).encode()
+        digest = hashlib.sha256(body).hexdigest()
+        key = f"quarantine/massive/{run['symbol']}/{run_id}/{digest}.json"
+        try:
+            # Replaying the same immutable raw response can reproduce its manifest.
+            self.raw_store.save(key,body)
+        except FileExistsError:
+            return self._quarantine_matches(key, body)
+        except ClientError as exc:
+            if exc.response['Error']['Code'] in ('PreconditionFailed','412'):
+                return self._quarantine_matches(key, body)
+            return False
+        except (OSError, BotoCoreError):
+            return False
+        return True
+
+    def _quarantine_matches(self, key, body):
+        try:
+            return self.raw_store.read(key) == body
+        except (OSError, BotoCoreError, ClientError):
+            return False

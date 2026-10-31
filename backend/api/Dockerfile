@@ -18,6 +18,8 @@ ENV PATH="/app/.venv/bin:$PATH" PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /app
 COPY --from=build /build/.venv /app/.venv
 COPY api/main.py /app/main.py
+COPY api/rds-ca.pem /app/rds-ca.pem
+COPY database/migrations/001_schema.sql /app/application-schema.sql
 USER 10001:10001
 EXPOSE 8000
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

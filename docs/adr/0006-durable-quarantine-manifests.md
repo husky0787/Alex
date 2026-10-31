@@ -1,0 +1,3 @@
+# Preserve quarantine evidence before publishing a run
+
+Quarantined bars now have immutable, content-addressed manifests in the same private data store as the original responses; each manifest records the run, original object key and SHA256, and rejection reasons. The original response remains the source of record, so a manifest does not copy a potentially large response or mix rejected bars with verified prices. If this evidence cannot be stored or a replayed object cannot be verified, the run fails before publishing valid bars: durable rejection provenance takes precedence over partial availability, at the cost of making publication depend on the quarantine store.

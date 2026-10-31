@@ -5,12 +5,16 @@
 api/**
 !api/pyproject.toml
 !api/main.py
+!api/rds-ca.pem
 !database/
 database/**
 !database/pyproject.toml
 !database/src/
 database/src/**
 !database/src/*.py
+!database/migrations/
+database/migrations/**
+!database/migrations/001_schema.sql
 !market_data/
 market_data/**
 !market_data/pyproject.toml
