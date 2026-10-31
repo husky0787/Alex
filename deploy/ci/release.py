@@ -11,6 +11,7 @@ from pathlib import Path
 import re
 import subprocess
 import urllib.request
+from uuid import uuid4
 
 
 class ReleaseError(RuntimeError):
@@ -38,8 +39,18 @@ class Kubernetes:
     def call(self, *args, data=None):
         result = subprocess.run([*self.command, *args], input=data, text=True, capture_output=True)
         if result.returncode:
-            # Avoid emitting cluster/Pod configuration from kubectl errors.
-            raise ReleaseError(f'kubectl {args[0]} failed (exit {result.returncode})')
+            # Preserve diagnostics privately; only safe reasons enter public evidence.
+            directory = Path('.local/ci/diagnostics')
+            directory.mkdir(parents=True, exist_ok=True)
+            diagnostic = directory / f'kubectl-{uuid4().hex}.log'
+            diagnostic.write_text(result.stdout + '\n' + result.stderr)
+            diagnostic.chmod(0o600)
+            reason = re.search(r'Error from server \(([A-Za-z0-9]+)\)', result.stderr)
+            detail = reason.group(1) if reason else 'See private diagnostic'
+            if args[0] == 'rollout':
+                # Rollout status prints progress, not resource bodies or credentials.
+                detail = (result.stdout + result.stderr).strip()[-2000:]
+            raise ReleaseError(f'kubectl {args[0]} failed (exit {result.returncode}): {detail}; diagnostic={diagnostic}')
         return result.stdout
 
     def read(self):
@@ -81,6 +92,8 @@ def release(client, image, commit, smoke):
     try:
         client.wait()
         smoke()
+        if client.read()['spec']['template'] != candidate:
+            raise ReleaseError('Concurrent release replaced the candidate template')
         evidence['status'] = 'succeeded'
     except (ReleaseError, OSError) as exc:
         evidence['failure'] = str(exc)
@@ -91,6 +104,8 @@ def release(client, image, commit, smoke):
             client.replace_template(observed, original)
             client.wait()
             smoke()
+            if client.read()['spec']['template'] != original:
+                raise ReleaseError('Concurrent release replaced the rollback template')
             evidence['status'] = 'rolled_back'
         except (ReleaseError, OSError) as rollback:
             evidence.update(status='rollback_failed', rollback_failure=str(rollback))

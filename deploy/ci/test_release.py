@@ -77,6 +77,27 @@ class ReleaseTests(unittest.TestCase):
         self.assertEqual(release(cluster, NEW, COMMIT, smoke)['status'], 'rolled_back')
         self.assertEqual(len(calls), 3)
 
+    def test_healthy_concurrent_release_is_not_claimed_as_our_success(self):
+        cluster = Cluster()
+        calls = []
+        def smoke():
+            calls.append(1)
+            if len(calls) == 2:
+                cluster.value['spec']['template']['metadata']['annotations']['other'] = 'new-release'
+        self.assertEqual(release(cluster, NEW, COMMIT, smoke)['status'], 'rollback_failed')
+        self.assertEqual(len(cluster.writes), 1)
+
+    def test_healthy_concurrent_rollback_is_not_claimed_as_restored(self):
+        cluster = Cluster(fail=True)
+        calls = []
+        def smoke():
+            calls.append(1)
+            if len(calls) == 2:
+                cluster.value['spec']['template']['metadata']['annotations']['other'] = 'new-release'
+        result = release(cluster, NEW, COMMIT, smoke)
+        self.assertEqual(result['status'], 'rollback_failed')
+        self.assertIn('Concurrent release', result['rollback_failure'])
+
 
 if __name__ == '__main__':
     unittest.main()
