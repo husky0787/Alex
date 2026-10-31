@@ -86,6 +86,10 @@ class ScheduledTests(unittest.TestCase):
         recovered = self.worker().run('daily', symbols=['AAPL'])
         self.assertEqual(recovered['status'], 'succeeded')
         self.assertEqual(recovered['runs'][0]['id'], run_id)
+        original = self.executions.get(result['id'])
+        self.assertEqual(original, result)
+        self.assertEqual(original['accepted_count'], 0)
+        self.assertEqual(recovered['accepted_count'], 1)
 
     def test_batch_lock_blocks_other_connection_then_allows_retry(self):
         with psycopg.connect(self.dsn, autocommit=True, options=f'-c search_path={self.schema}') as other:

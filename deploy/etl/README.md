@@ -72,7 +72,8 @@ Install the image in the existing local lab first. Supply a private JSON file,
 for example `.local/etl-secrets.json`, with `MARKET_DATABASE_URL` pointing to the
 same intended database used by the API and `MASSIVE_API_KEY`. Never commit it.
 Use a separate clean lab after synthetic testing; do not mix synthetic prices
-with real provider records. The installer migrates the chosen market schema.
+with real provider records. The installer rejects switching between fixture and
+live modes within the same lab, and migrates the chosen market schema.
 
 ```bash
 uv run --no-project deploy/etl/run.py install --image alex-api:task08 --secret-file .local/etl-secrets.json

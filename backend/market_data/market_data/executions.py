@@ -40,9 +40,10 @@ class ExecutionRepository:
             return [str(row['id']) for row in cursor.fetchall()]
 
     def finish(self, execution_id, status, now, error=None):
+        runs = self.get(execution_id)['runs']
         self.connection.execute(
-            "UPDATE market_executions SET status=%s, finished_at=%s, error_code=%s WHERE id=%s",
-            (status, now, error, execution_id),
+            "UPDATE market_executions SET status=%s, finished_at=%s, error_code=%s, run_summaries=%s WHERE id=%s",
+            (status, now, error, Jsonb(runs), execution_id),
         )
         return self.get(execution_id)
 
@@ -55,12 +56,16 @@ class ExecutionRepository:
         result = serialize(row)
         result['duration_seconds'] = ((row['finished_at'] - row['started_at']).total_seconds()
                                       if row['finished_at'] else None)
-        run_ids = list(dict.fromkeys(run_id for item in result['results'] for run_id in item['run_ids']))
-        # Include original IDs and safe diagnostics, never raw locations or response bodies.
-        runs = [self.prices.get_run(run_id) for run_id in run_ids]
-        result['runs'] = [{key: run[key] for key in (
-            'id', 'symbol', 'status', 'started_at', 'finished_at', 'accepted_count',
-            'rejected_count', 'missing_count', 'error_code')} for run in runs]
+        runs = result.pop('run_summaries')
+        if row['finished_at'] is None:
+            run_ids = list(dict.fromkeys(run_id for item in result['results'] for run_id in item['run_ids']))
+            # Live while running; frozen at finish so a subsequent resume cannot
+            # rewrite an earlier batch's counts/outcome. Never include raw locations.
+            runs = [{key: run[key] for key in (
+                'id', 'symbol', 'status', 'started_at', 'finished_at', 'accepted_count',
+                'rejected_count', 'missing_count', 'error_code')}
+                for run in (self.prices.get_run(run_id) for run_id in run_ids)]
+        result['runs'] = runs
         result['accepted_count'] = sum(run['accepted_count'] for run in runs)
         result['rejected_count'] = sum(run['rejected_count'] for run in runs)
         return result

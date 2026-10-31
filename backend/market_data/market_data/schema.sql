@@ -97,6 +97,7 @@ CREATE TABLE IF NOT EXISTS market_alerts (
     execution_id UUID REFERENCES market_executions(id),
     details JSONB NOT NULL
 );
+ALTER TABLE market_executions ADD COLUMN IF NOT EXISTS run_summaries JSONB NOT NULL DEFAULT '[]';
 -- Preserve provenance of prices loaded before this migration.
 INSERT INTO market_observations (run_id, price_id, observed_at)
     SELECT p.run_id, p.id, p.fetched_at FROM daily_prices p

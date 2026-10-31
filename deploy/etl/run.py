@@ -26,6 +26,10 @@ def apply(objects):
 
 def install(image, fixture, secret_file):
     local.require_owner()
+    mode = 'synthetic' if fixture else 'live'
+    previous = local.kube('get','configmap','etl-data-mode','--ignore-not-found','-o','json',output=True).strip()
+    if previous and json.loads(previous)['data']['mode'] != mode:
+        raise ValueError('Do not mix synthetic and live data; recreate the disposable lab first')
     # Provision only this owned node's named raw directory; no host/global volumes.
     local.run(['docker','exec',local.NODE,'mkdir','-p','/var/lib/alex-market-raw'])
     local.run(['docker','exec',local.NODE,'chown','10001:10001','/var/lib/alex-market-raw'])
@@ -42,6 +46,7 @@ def install(image, fixture, secret_file):
         if not all(secrets.get(key) for key in ('MARKET_DATABASE_URL','MASSIVE_API_KEY')):
             raise ValueError('Both MARKET_DATABASE_URL and MASSIVE_API_KEY are required')
     apply([{'apiVersion':'v1','kind':'Secret','metadata':{'name':'etl-secrets'},'stringData':secrets}])
+    apply([{'apiVersion':'v1','kind':'ConfigMap','metadata':{'name':'etl-data-mode'},'data':{'mode':mode}}])
     objects = resources(image,fixture=fixture)
     apply(objects)
     migration = deepcopy(objects[2]['spec']['jobTemplate']['spec'])
