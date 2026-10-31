@@ -22,10 +22,12 @@ class HistoryBackfill:
         for symbol in symbols:
             history = self.repository.history(symbol, start, end, as_of=now)
             run, error, action = None, None, "skipped"
+            run_ids = []
             if history["missing_dates"]:
                 interrupted = self.repository.interrupted_run(symbol, start, end)
                 if interrupted:
                     action = "resumed"
+                    run_ids.append(interrupted["id"])
                     try:
                         run = self.pipeline.resume(interrupted["id"])
                     except RunBlocked as blocked:
@@ -38,11 +40,13 @@ class HistoryBackfill:
                     action = "resumed_and_fetched" if run else "fetched"
                     run = self.pipeline.run(symbol, date.fromisoformat(history["missing_dates"][0]),
                                             date.fromisoformat(history["missing_dates"][-1]))
+                    run_ids.append(run["id"])
                 history = self.repository.history(symbol, start, end, as_of=now)
             complete = history["coverage"] in ("complete", "not_due")
             row = {"symbol": symbol, "action": action, "coverage": history["coverage"],
                    "expected_count": history["expected_count"], "available_count": history["available_count"],
                    "missing_dates": history["missing_dates"], "run_id": run["id"] if run else None,
+                   "run_ids": run_ids,
                    "run_status": run["status"] if run else None,
                    "error_code": error or (run["error_code"] if run else None), "complete": complete}
             results.append(row)

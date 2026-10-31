@@ -224,6 +224,17 @@ class APIErrorContractTests(unittest.TestCase):
             self.assertEqual(self.client.get('/health').status_code, 200)
             readiness.assert_no_pending_responses()
 
+    def test_market_status_requires_authentication_and_sanitizes_database_failure(self):
+        import psycopg
+        self.assert_json_error(self.client.get('/api/market-data/status'), 403)
+        with patch.dict(os.environ, {'MARKET_DATABASE_URL':'postgresql://test-only'}), \
+                patch('main.psycopg.connect', side_effect=psycopg.OperationalError('private credentials')):
+            with self.assertLogs('main',level='ERROR') as logs:
+                response = self.client.get('/api/market-data/status',headers=self.headers())
+            self.assert_json_error(response,503)
+            self.assertNotIn('private credentials',response.text + str(logs.output))
+            self.assertIn('OperationalError',str(logs.output))
+
 
 if __name__ == "__main__":
     unittest.main()
