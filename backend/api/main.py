@@ -38,7 +38,9 @@ from src.schemas import (
 )
 
 # Load environment variables
-load_dotenv(override=True)
+# Honor explicit launch configuration even with older python-dotenv versions.
+if os.getenv("PYTHON_DOTENV_DISABLED") != "1":
+    load_dotenv(override=True)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

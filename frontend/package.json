@@ -5,6 +5,7 @@
   "scripts": {
     "test:market": "node --import tsx --test tests/market-price.test.mjs",
     "test:analysis": "node --import tsx --test tests/analysis-prices.test.mjs",
+    "test:dashboard": "node --import tsx --test tests/dashboard-auth.test.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

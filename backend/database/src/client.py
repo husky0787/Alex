@@ -16,7 +16,8 @@ import logging
 try:
     from dotenv import load_dotenv
 
-    load_dotenv(override=True)
+    if os.getenv("PYTHON_DOTENV_DISABLED") != "1":
+        load_dotenv(override=True)
 except ImportError:
     pass  # dotenv not installed, continue without it
 

@@ -1,0 +1,22 @@
+{
+  "checked_at": "2026-10-31T12:49:32.808324+00:00",
+  "empty_states": {
+    "11_showcase": true,
+    "3_ingestion": true,
+    "2_sagemaker": true
+  },
+  "task_lambda_absent": true,
+  "task_queue_absent": true,
+  "embedding_endpoint_absent": true,
+  "vector_bucket_absent": true,
+  "owned_log_groups_absent": true,
+  "original_functions_unchanged": 6,
+  "secret_recovery_deletion_scheduled": true,
+  "database_cleanup": {
+    "at": "2026-10-31T12:46:24.698033+00:00",
+    "database_removed": true,
+    "original_database_preserved": true,
+    "original_functions_unchanged": 6,
+    "secret_recovery_days": 7
+  }
+}

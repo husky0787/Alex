@@ -9,6 +9,9 @@ import io
 import json
 import os
 import time
+from pathlib import Path
+import subprocess
+import sys
 import unittest
 from unittest.mock import patch
 
@@ -110,6 +113,14 @@ class APIErrorContractTests(unittest.TestCase):
                 self.rows([], parameters=[{"name": "clerk_id", "value": {"stringValue": "user_alice"}}])
                 response = self.client.request(method, url, json=body, headers=self.headers())
                 self.assert_json_error(response, 404)
+
+    def test_explicit_launch_configuration_survives_actual_imports(self):
+        # A fresh interpreter exercises BOTH the database client's and API's
+        # module-level dotenv loading. No real credentials or network permitted.
+        probe = Path(__file__).with_name('test_explicit_environment.py')
+        result = subprocess.run([sys.executable, str(probe)], capture_output=True, text=True,
+                                env={**os.environ, 'PYTHON_DOTENV_DISABLED': '1'})
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_missing_invalid_expired_and_forged_tokens_are_rejected(self):
         for headers in [

@@ -1,0 +1,22 @@
+{
+  "at": "2026-10-31T12:16:29.705248+00:00",
+  "jobs": 1,
+  "states": [
+    "completed"
+  ],
+  "snapshot_consistent": true,
+  "chart_values_match_snapshot": true,
+  "research_provenance_preserved": true,
+  "verified_symbols": [
+    "AAPL",
+    "MSFT"
+  ],
+  "price_dates": [
+    "2026-10-30"
+  ],
+  "report_saved": true,
+  "charts_saved": true,
+  "retirement_saved": true,
+  "created_at": "2026-10-31 12:13:33.364689",
+  "completed_at": "2026-10-31 12:14:10.560097"
+}
