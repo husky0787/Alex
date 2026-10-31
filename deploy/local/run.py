@@ -61,7 +61,8 @@ def up(args):
     if exists:
         require_owner()
     if not exists:
-        run([args.k3d,'cluster','create',CLUSTER,'--image','rancher/k3s:v1.35.5-k3s1',
+        registry = ['--registry-use',args.registry] if getattr(args,'registry',None) else []
+        run([args.k3d,'cluster','create',CLUSTER,'--image','rancher/k3s:v1.35.5-k3s1',*registry,
             '--no-lb','--servers-memory','4g','--api-port','127.0.0.1:16443',
             '-p','127.0.0.1:18080:30080@server:0:direct','--kubeconfig-update-default=false',
             '--kubeconfig-switch-context=false','--k3s-arg','--disable=traefik,metrics-server,local-storage@server:0',
@@ -145,6 +146,7 @@ def main():
     parser.add_argument('--k3d',default='k3d')
     parser.add_argument('--image',default='alex-api:task07')
     parser.add_argument('--postgres-image',default='postgres:17.6')
+    parser.add_argument('--registry',help='Optional k3d registry for digest-based CI release drills')
     args=parser.parse_args()
     if args.action=='up':
         up(args)

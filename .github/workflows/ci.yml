@@ -1,0 +1,155 @@
+name: Alex CI and controlled release
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alex-ci-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.6
+        env:
+          POSTGRES_USER: alex_test
+          POSTGRES_PASSWORD: test-only
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U alex_test" --health-interval 5s
+          --health-timeout 5s --health-retries 12
+    env:
+      MARKET_TEST_DATABASE_URL: postgresql://alex_test:test-only@127.0.0.1:5432/postgres
+      AWS_EC2_METADATA_DISABLED: 'true'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6'
+          python-version: '3.12'
+      - name: Market contracts and real PostgreSQL integration
+        run: uv run --project backend --locked --package api -m unittest discover -s backend/market_data/tests -p 'test_*.py' -v
+      - name: API authentication and error contracts
+        working-directory: backend/api
+        run: uv run --locked --package api -m unittest test_error_contract -v
+      - name: Cloud helpers
+        run: uv run --project backend --locked --package api deploy/eks/test_cloud.py
+      - name: Release failure contracts
+        run: uv run --no-project deploy/ci/test_release.py
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run test:market && npm run test:analysis
+      - run: npm run lint && npx tsc --noEmit
+      - name: Static production build with test-only Clerk configuration
+        env:
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_dGVzdC5jbGVyay5hY2NvdW50cy5kZXYk
+          NEXT_PUBLIC_API_URL: https://api.example.invalid
+        run: npm run build
+
+  image-and-rollout:
+    needs: [backend, frontend]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6'
+          python-version: '3.12'
+      - run: uv run --no-project deploy/ci/install_tools.py
+      - name: Build current and previous source revisions
+        run: uv run --no-project deploy/ci/build.py
+      - name: Digest release and failed-release rollback on disposable Kubernetes
+        run: uv run --no-project deploy/ci/acceptance.py
+      - name: Retain public release evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ci-release-evidence
+          path: .local/ci/evidence/*.json
+          include-hidden-files: true
+          retention-days: 14
+      - name: Retain only verified container archives and their manifest
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: tested-images
+          path: .local/ci/artifacts/
+          include-hidden-files: true
+          retention-days: 3
+          compression-level: 0
+
+  release:
+    # An operator explicitly allowlists ONE full commit before pushing/rerunning.
+    # PRs (including forks) never enter this job or receive an OIDC token.
+    if: github.event_name == 'push' && github.sha == vars.ALEX_RELEASE_COMMIT
+    needs: [backend, frontend, image-and-rollout]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    environment: alex-acceptance
+    concurrency:
+      group: alex-acceptance-release
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPOSITORY: ${{ vars.ALEX_ECR_REPOSITORY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6'
+          python-version: '3.12'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: tested-images
+          path: .local/ci/artifacts
+      - run: uv run --no-project deploy/ci/install_tools.py
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.ALEX_RELEASE_ROLE_ARN }}
+          role-session-name: alex-${{ github.run_id }}
+          role-duration-seconds: 1800
+          aws-region: us-east-1
+          allowed-account-ids: ${{ vars.ALEX_AWS_ACCOUNT_ID }}
+      - name: Publish tested archives and deploy exact ECR digests
+        run: uv run --no-project deploy/ci/acceptance.py --ecr "$ECR_REPOSITORY"
+      - name: Retain public AWS release evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: aws-release-evidence
+          path: .local/ci/evidence/*.json
+          include-hidden-files: true
+          retention-days: 14
