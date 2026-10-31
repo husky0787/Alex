@@ -1,0 +1,85 @@
+# Disposable local fixtures only. Database contents disappear when its Pod is removed.
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: postgres}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: postgres}
+  template:
+    metadata:
+      labels: {app: postgres}
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: postgres
+          image: postgres:17.6
+          imagePullPolicy: Never
+          envFrom: [{secretRef: {name: postgres-secrets}}]
+          ports: [{containerPort: 5432}]
+          readinessProbe:
+            exec: {command: [pg_isready, -U, alex, -d, alex]}
+            periodSeconds: 2
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 512Mi}
+          volumeMounts: [{name: data, mountPath: /var/lib/postgresql/data}]
+      volumes: [{name: data, emptyDir: {sizeLimit: 1Gi}}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: postgres}
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: fixtures}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: fixtures}
+  template:
+    metadata:
+      labels: {app: fixtures}
+    spec:
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: fixtures
+          image: alex-api:task07
+          imagePullPolicy: Never
+          command: [python, -m, uvicorn, fixtures:app, --app-dir, /fixtures, --host, 0.0.0.0, --port, "8081"]
+          envFrom: [{secretRef: {name: fixture-secrets}}]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          ports: [{containerPort: 8081}]
+          readinessProbe:
+            httpGet: {path: /health, port: 8081}
+            periodSeconds: 3
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {cpu: "1", memory: 256Mi}
+          volumeMounts:
+            - {name: fixtures, mountPath: /fixtures, readOnly: true}
+            - {name: keys, mountPath: /keys, readOnly: true}
+      volumes:
+        - name: fixtures
+          configMap: {name: fixture-code}
+        - name: keys
+          configMap: {name: fixture-jwks}
+---
+apiVersion: v1
+kind: Service
+metadata: {name: fixtures}
+spec:
+  selector: {app: fixtures}
+  ports: [{port: 8081}]

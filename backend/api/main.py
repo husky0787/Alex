@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 import boto3
+from botocore.config import Config
 import psycopg
 from mangum import Mangum
 from dotenv import load_dotenv
@@ -98,6 +99,8 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # Initialize services
 db = Database()
+readiness_client = boto3.client('rds-data', region_name=os.getenv('DEFAULT_AWS_REGION', 'us-east-1'),
+    config=Config(connect_timeout=1, read_timeout=2, retries={'total_max_attempts': 1}))
 
 # SQS client for job queueing
 sqs_client = boto3.client('sqs', region_name=os.getenv('DEFAULT_AWS_REGION', 'us-east-1'))
@@ -200,6 +203,18 @@ def get_verified_market_price(symbol: str, clerk_user_id: str = Depends(get_curr
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+
+@app.get("/ready")
+def readiness_check():
+    """Readiness checks database reachability; liveness stays independent."""
+    try:
+        readiness_client.execute_statement(resourceArn=db.client.cluster_arn,
+            secretArn=db.client.secret_arn, database=db.client.database, sql="SELECT 1")
+    except Exception:
+        logger.warning("API readiness: database unavailable")
+        raise HTTPException(status_code=503, detail="Database unavailable") from None
+    return {"status": "ready"}
 
 @app.get("/api/user", response_model=UserResponse)
 async def get_or_create_user(
