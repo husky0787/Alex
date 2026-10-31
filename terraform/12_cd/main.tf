@@ -88,6 +88,7 @@ resource "aws_iam_role_policy" "release" {
     { Effect = "Allow", Action = "iam:PassRole", Resource = aws_iam_role.cloudformation.arn,
     Condition = { StringEquals = { "iam:PassedToService" = "cloudformation.amazonaws.com" } } },
     { Effect = "Allow", Action = "eks:DescribeCluster", Resource = local.eks[0] },
+    { Effect = "Allow", Action = "iam:SimulatePrincipalPolicy", Resource = aws_iam_role.cloudformation.arn },
     { Effect = "Allow", Action = "ec2:DescribeAvailabilityZones", Resource = "*" }
   ] })
 }
@@ -102,7 +103,7 @@ resource "aws_iam_role_policy" "cloudformation" {
     { Effect = "Allow", Action = "iam:PassRole", Resource = [aws_iam_role.cluster.arn, aws_iam_role.node.arn],
     Condition = { StringEquals = { "iam:PassedToService" = ["eks.amazonaws.com", "ec2.amazonaws.com"] } } },
     { Effect = "Allow", Action = ["iam:GetRole"], Resource = [aws_iam_role.cluster.arn, aws_iam_role.node.arn] },
-    { Effect = "Allow", Action = ["iam:ListAttachedRolePolicies"], Resource = [aws_iam_role.node.arn] },
+    { Effect = "Allow", Action = ["iam:ListAttachedRolePolicies"], Resource = [aws_iam_role.node.arn, aws_iam_role.cluster.arn] },
     { Effect = "Allow", Action = ["ec2:DescribeVpcs", "ec2:DescribeSubnets", "ec2:DescribeRouteTables",
       "ec2:DescribeInternetGateways", "ec2:DescribeAvailabilityZones", "ec2:DescribeVpcAttribute",
     "ec2:DescribeSecurityGroups", "ec2:DescribeNetworkInterfaces", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions"], Resource = "*" },

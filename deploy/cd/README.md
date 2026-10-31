@@ -36,7 +36,9 @@ evidence; do not combine those claims into a full production CD run.
 
 The deploy role only publishes/deletes images in `alex-cd-api`, operates stack
 `alex-cd-window`, passes its dedicated CloudFormation role and describes its EKS
-cluster. CloudFormation may create tagged network resources and the named EKS
+cluster. It can also simulate permissions of its dedicated CloudFormation role
+to check both node/cluster role-inspection prerequisites before billable creation.
+CloudFormation may create tagged network resources and the named EKS
 cluster, and pass the fixed node/cluster roles. It cannot create arbitrary IAM
 roles. Node roles use standard EKS worker/CNI/ECR policies. These infrastructure
 permissions are broader than namespace-only app deployment; review them as such.

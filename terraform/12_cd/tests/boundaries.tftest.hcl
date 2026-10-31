@@ -21,8 +21,8 @@ run "bounded_delivery_roles" {
     error_message = "Deployment must not access existing application credentials or workers."
   }
   assert {
-    condition     = anytrue([for statement in jsondecode(aws_iam_role_policy.cloudformation.policy).Statement : try(contains(statement.Action, "iam:ListAttachedRolePolicies") && contains(statement.Resource, aws_iam_role.node.arn) && !contains(statement.Resource, "*"), false)])
-    error_message = "EKS CreateNodegroup must inspect attached policies on its scoped node role."
+    condition     = alltrue([for role in [aws_iam_role.node.arn, aws_iam_role.cluster.arn] : anytrue([for statement in jsondecode(aws_iam_role_policy.cloudformation.policy).Statement : try(contains(statement.Action, "iam:ListAttachedRolePolicies") && contains(statement.Resource, role) && !contains(statement.Resource, "*"), false)])])
+    error_message = "EKS CreateNodegroup must inspect policies on both dedicated node and cluster roles."
   }
   assert {
     condition     = !strcontains(aws_iam_role_policy.cloudformation.policy, "iam:CreateRole") && !strcontains(aws_iam_role_policy.cloudformation.policy, "iam:PutRolePolicy")

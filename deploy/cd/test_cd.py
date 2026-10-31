@@ -170,5 +170,40 @@ class DiagnosticsTests(unittest.TestCase):
             self.assertNotIn('secret-value', str(evidence.call_args))
 
 
+@patch.dict(os.environ, {'ALEX_CD_NODE_ROLE': 'arn:aws:iam::123456789012:role/alex-cd-node',
+    'ALEX_CD_CLUSTER_ROLE': 'arn:aws:iam::123456789012:role/alex-cd-cluster',
+    'ALEX_CD_CF_ROLE_ARN': 'arn:aws:iam::123456789012:role/alex-cd-cloudformation'})
+class PrerequisiteTests(unittest.TestCase):
+    def response(self):
+        return {'EvaluationResults': [{'EvalActionName': action, 'EvalDecision': 'allowed',
+            'ResourceSpecificResults': [{'EvalResourceName': os.environ[key], 'EvalResourceDecision': 'allowed'}
+                for key in ('ALEX_CD_NODE_ROLE', 'ALEX_CD_CLUSTER_ROLE')]}
+            for action in ('iam:GetRole', 'iam:ListAttachedRolePolicies')]}
+
+    def test_both_role_checks_pass_before_provisioning(self):
+        with patch.object(lifecycle, 'aws', return_value=self.response()) as aws, patch.object(lifecycle, 'evidence'):
+            lifecycle.preflight_roles()
+            self.assertEqual(aws.call_args.args, ('iam', 'simulate-principal-policy'))
+
+    def test_cluster_policy_denial_stops_before_create_stack(self):
+        response = self.response()
+        response['EvaluationResults'][1]['EvalDecision'] = 'implicitDeny'
+        response['EvaluationResults'][1]['ResourceSpecificResults'][1]['EvalResourceDecision'] = 'implicitDeny'
+        with patch.object(lifecycle, 'stack', return_value=None), \
+                patch.object(lifecycle, 'aws', return_value=response) as aws:
+            with self.assertRaisesRegex(RuntimeError, 'alex-cd-cluster') as error:
+                lifecycle.create('42-1')
+            self.assertNotIn('on alex-cd-node', str(error.exception))
+            self.assertEqual(aws.call_count, 1)
+            self.assertEqual(aws.call_args.args, ('iam', 'simulate-principal-policy'))
+
+    def test_incomplete_simulation_is_not_treated_as_allowed(self):
+        response = self.response()
+        response['EvaluationResults'][1]['ResourceSpecificResults'].pop()
+        with patch.object(lifecycle, 'aws', return_value=response):
+            with self.assertRaisesRegex(RuntimeError, 'missing before provisioning'):
+                lifecycle.preflight_roles()
+
+
 if __name__ == '__main__':
     unittest.main()
