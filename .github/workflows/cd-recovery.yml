@@ -1,0 +1,63 @@
+name: Recover temporary EKS
+
+on:
+  workflow_run:
+    workflows: [Release to temporary EKS]
+    types: [completed]
+    branches: [main]
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alex-eks-cd-lifecycle
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    if: github.repository == 'husky0787/Alex' && vars.ALEX_CD_RECOVERY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    environment: alex-eks-cd
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      ALEX_CD_CF_ROLE_ARN: ${{ vars.ALEX_CD_CF_ROLE_ARN }}
+      ALEX_CD_REPOSITORY: ${{ vars.ALEX_CD_REPOSITORY }}
+      COMPLETED_RUN: ${{ github.event.workflow_run.id }}
+      COMPLETED_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+    steps:
+      # Always execute trusted main code, never the triggering run's branch/artifact.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6'
+          python-version: '3.12'
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.ALEX_CD_ROLE_ARN }}
+          role-session-name: cd-recover-${{ github.run_id }}
+          role-duration-seconds: 7200
+          aws-region: us-east-1
+          allowed-account-ids: ${{ vars.ALEX_AWS_ACCOUNT_ID }}
+      - name: Recover only matching completed run or expired environment
+        shell: bash
+        run: |
+          args=()
+          if [[ -n "$COMPLETED_RUN" ]]; then args+=(--completed-run "$COMPLETED_RUN" --completed-attempt "$COMPLETED_ATTEMPT"); fi
+          uv run --no-project deploy/cd/lifecycle.py recover "${args[@]}"
+      - name: Save cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: eks-cd-recovery
+          path: .local/cd/evidence/*.json
+          include-hidden-files: true
+          retention-days: 14

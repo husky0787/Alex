@@ -1,6 +1,6 @@
 # Alex 第一版規劃
 
-更新日期：2026-10-31。狀態：任務 1–10 的實作 PR 均已合併；任務 6 的功能驗收通過，費用核對獨立追蹤。任務 10 的 PR #24 已合併為 `7d7c5d5`，issue #12 已關閉。任務 11 在 `feat/task-11-showcase` 完成真實 Clerk 登入、完整分析、展示文件與影片、雙軸審查及隔離資源清理；接續入口為本分支的 PR／CI。GitHub Issues 是狀態主要來源。
+更新日期：2026-10-31。狀態：任務 1–10 的實作 PR 均已合併；任務 6 的功能驗收通過，費用核對獨立追蹤。任務 10 的 PR #24 已合併為 `7d7c5d5`，issue #12 已關閉。任務 11 已於 PR #25 合併為 `4fc26b3`，issue #13 已關閉，隔離資源已清理。目前延伸工作為使用者選定的「按一次發布」短期 EKS CD，見 [規格](manual-eks-cd.md) 與 [操作文件](../../deploy/cd/README.md)。GitHub Issues 是狀態主要來源。
 
 規格：[alex-v1-spec.md](alex-v1-spec.md)。任務：[任務清單](alex-v1-tickets/README.md)。
 
