@@ -18,11 +18,17 @@ data "aws_caller_identity" "current" {}
 
 locals {
   researcher_deployed = var.researcher_image_uri != ""
-  scheduler_active    = var.scheduler_enabled && local.researcher_deployed
+  scheduler_active    = var.scheduler_enabled && local.researcher_deployed && var.public_url_enabled
 }
 
 # ECR repository for the researcher Docker image
 resource "aws_ecr_repository" "researcher" {
+  lifecycle {
+    precondition {
+      condition     = !var.scheduler_enabled || var.public_url_enabled
+      error_message = "The HTTP scheduler requires public_url_enabled=true. Keep the scheduler disabled for IAM-only acceptance."
+    }
+  }
   name                 = "alex-researcher"
   image_tag_mutability = "MUTABLE"
   force_delete         = true
@@ -148,13 +154,13 @@ resource "aws_lambda_function" "researcher" {
 
 # Public function URL for the researcher service
 resource "aws_lambda_function_url" "researcher" {
-  count              = local.researcher_deployed ? 1 : 0
+  count              = local.researcher_deployed && var.public_url_enabled ? 1 : 0
   function_name      = aws_lambda_function.researcher[0].function_name
   authorization_type = "NONE"
 }
 
 resource "aws_lambda_permission" "allow_public_function_url_invoke" {
-  count                    = local.researcher_deployed ? 1 : 0
+  count                    = local.researcher_deployed && var.public_url_enabled ? 1 : 0
   statement_id             = "AllowPublicFunctionInvokeViaUrl"
   action                   = "lambda:InvokeFunction"
   function_name            = aws_lambda_function.researcher[0].function_name
@@ -188,15 +194,15 @@ resource "aws_iam_role" "eventbridge_role" {
 
 # Lambda function for invoking researcher
 resource "aws_lambda_function" "scheduler_lambda" {
-  count         = local.scheduler_active ? 1 : 0
-  function_name = "alex-researcher-scheduler"
-  role          = aws_iam_role.lambda_scheduler_role[0].arn
-  filename      = "${path.module}/../../backend/scheduler/lambda_function.zip"
+  count            = local.scheduler_active ? 1 : 0
+  function_name    = "alex-researcher-scheduler"
+  role             = aws_iam_role.lambda_scheduler_role[0].arn
+  filename         = "${path.module}/../../backend/scheduler/lambda_function.zip"
   source_code_hash = fileexists("${path.module}/../../backend/scheduler/lambda_function.zip") ? filebase64sha256("${path.module}/../../backend/scheduler/lambda_function.zip") : null
-  handler       = "lambda_function.handler"
-  runtime       = "python3.12"
-  timeout       = 180
-  memory_size   = 256
+  handler          = "lambda_function.handler"
+  runtime          = "python3.12"
+  timeout          = 180
+  memory_size      = 256
 
   environment {
     variables = {

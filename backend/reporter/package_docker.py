@@ -23,7 +23,7 @@ def run_command(cmd, cwd=None):
     return result.stdout
 
 
-def package_lambda(network=None):
+def package_lambda(network=None, uv_binary=None):
     """Package the Lambda function with all dependencies."""
 
     # Get the directory containing this script
@@ -41,31 +41,33 @@ def package_lambda(network=None):
         # Export exact requirements from uv.lock (excluding the editable database package)
         print("Exporting requirements from uv.lock...")
         requirements_result = run_command(
-            ["uv", "export", "--locked", "--no-hashes", "--no-emit-project",
+            ["uv", "export", "--locked", "--no-emit-project",
              "--no-emit-package", "alex-database", "--no-emit-package", "alex-research"], cwd=str(reporter_dir)
         )
 
-        # Filter out packages that don't work in Lambda
-        filtered_requirements = []
-        for line in requirements_result.splitlines():
-            # Skip pyperclip (clipboard library not needed in Lambda)
-            if line.startswith("pyperclip"):
-                print(f"Excluding from Lambda: {line}")
-                continue
-            filtered_requirements.append(line)
-
         req_file = temp_path / "requirements.txt"
-        req_file.write_text("\n".join(filtered_requirements))
+        req_file.write_text(requirements_result)
 
         docker_user_args = (
             ["--user", f"{os.getuid()}:{os.getgid()}"] if os.name == "posix" else []
         )
         network_args = ["--network", network] if network else []
-        proxy_args = []
+        installer = "pip install"
+        installer_args = []
+        if uv_binary is not None:
+            installer_args = [
+                "-v", f"{uv_binary.resolve(strict=True)}:/usr/local/bin/uv:ro",
+                "--env", "UV_CACHE_DIR=/build/.uv-cache",
+            ]
+            installer = "uv pip install --python /var/lang/bin/python3.12"
+            if "PIP_INDEX_URL" in os.environ:
+                installer += ' --default-index "$PIP_INDEX_URL"'
+        environment_args = []
         for name in ("HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "NO_PROXY",
-                     "http_proxy", "https_proxy", "all_proxy", "no_proxy"):
+                     "http_proxy", "https_proxy", "all_proxy", "no_proxy",
+                     "PIP_INDEX_URL"):
             if name in os.environ:
-                proxy_args.extend(["--env", name])
+                environment_args.extend(["--env", name])
 
         # Use Docker to install dependencies for Lambda's architecture
         docker_cmd = [
@@ -74,7 +76,8 @@ def package_lambda(network=None):
             "--rm",
             *docker_user_args,
             *network_args,
-            *proxy_args,
+            *installer_args,
+            *environment_args,
             "--platform",
             "linux/amd64",
             "-v",
@@ -87,7 +90,8 @@ def package_lambda(network=None):
             "/bin/bash",
             "public.ecr.aws/lambda/python:3.12",
             "-c",
-            """cd /build && pip install --target ./package -r requirements.txt && pip install --target ./package --no-deps /database /research""",
+            f"cd /build && {installer} --no-deps --require-hashes --target ./package -r requirements.txt"
+            f" && {installer} --target ./package --no-deps /database /research",
         ]
 
         run_command(docker_cmd)
@@ -149,6 +153,7 @@ def main():
     parser = argparse.ArgumentParser(description="Package Reporter Lambda for deployment")
     parser.add_argument("--deploy", action="store_true", help="Deploy to AWS after packaging")
     parser.add_argument("--network", help="Docker network; use host for a localhost proxy on Linux")
+    parser.add_argument("--uv-binary", type=Path, help="Optional Linux amd64 uv executable to mount for parallel installation")
     args = parser.parse_args()
 
     # Check if Docker is available
@@ -159,7 +164,7 @@ def main():
         sys.exit(1)
 
     # Package the Lambda
-    zip_path = package_lambda(network=args.network)
+    zip_path = package_lambda(network=args.network, uv_binary=args.uv_binary)
 
     # Deploy if requested
     if args.deploy:

@@ -26,6 +26,12 @@ variable "scheduler_enabled" {
   default     = false
 }
 
+variable "public_url_enabled" {
+  description = "Expose the Researcher through a public function URL; disable for IAM-only CLI acceptance."
+  type        = bool
+  default     = true
+}
+
 variable "researcher_image_uri" {
   description = "Full ECR image URI for the researcher Lambda container"
   type        = string

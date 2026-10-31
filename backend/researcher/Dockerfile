@@ -1,5 +1,5 @@
 FROM public.ecr.aws/awsguru/aws-lambda-adapter:1.0.0 AS lambda-adapter
-FROM python:3.12-slim
+FROM python:3.12-slim AS browser-deps
 
 ARG INSTALL_BUILD_ESSENTIAL=false
 ARG DEBIAN_MIRROR=http://deb.debian.org
@@ -20,10 +20,16 @@ RUN sed -i "s|http://deb.debian.org|${DEBIAN_MIRROR}|g" /etc/apt/sources.list.d/
     && npm install -g @playwright/mcp@0.0.75 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Chromium and its Linux dependencies for Playwright.
-RUN npx -y playwright install --with-deps chromium
+# Keep OS dependencies cached when a browser download needs to be retried.
+RUN npx -y playwright install-deps chromium
+
+FROM browser-deps AS runtime
+ARG PLAYWRIGHT_CHROMIUM_DOWNLOAD_HOST
+# MCP launches the full Chromium executable; a second headless-shell binary is unused.
+RUN npx -y playwright install --no-shell chromium
 
 # Install uv for Python dependency management inside the container.
+ARG PIP_INDEX_URL=https://pypi.org/simple
 RUN pip install uv
 
 # Copy dependency metadata first so Docker can cache the install layer.
