@@ -48,6 +48,8 @@ jobs:
         run: uv run --project backend --locked --package api deploy/eks/test_cloud.py
       - name: Release failure contracts
         run: uv run --no-project deploy/ci/test_release.py
+      - name: Showcase packaging, queue and cleanup contracts
+        run: uv run --no-project -m unittest discover -s deploy/showcase -p 'test_*.py' -v
 
   frontend:
     runs-on: ubuntu-24.04
@@ -65,7 +67,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run test:market && npm run test:analysis
+      - run: npm run test:market && npm run test:analysis && npm run test:dashboard
       - run: npm run lint && npx tsc --noEmit
       - name: Static production build with test-only Clerk configuration
         env:

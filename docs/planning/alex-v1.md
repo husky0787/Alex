@@ -1,6 +1,6 @@
 # Alex 第一版規劃
 
-更新日期：2026-10-31。狀態：任務 1–5 已合併至 `main`；任務 6 的 PR #19／#20 均已合併，雲端功能驗收通過，仍待實際帳單核對。任務 7／8／9 的 PR #21／#22／#23 已合併。任務 10 已通過 GitHub Actions、OIDC／ECR 與 digest 發布／回滾驗收，待 PR 合併。GitHub Issues 是狀態主要來源。
+更新日期：2026-10-31。狀態：任務 1–10 的實作 PR 均已合併；任務 6 的功能驗收通過，費用核對獨立追蹤。任務 10 的 PR #24 已合併為 `7d7c5d5`，issue #12 已關閉。任務 11 在 `feat/task-11-showcase` 完成真實 Clerk 登入與完整分析，正在整理展示、審查及清理。GitHub Issues 是狀態主要來源。
 
 規格：[alex-v1-spec.md](alex-v1-spec.md)。任務：[任務清單](alex-v1-tickets/README.md)。
 
@@ -80,7 +80,7 @@ AWS 官方 EKS 標準支援價格為每叢集每小時 US$0.10：
 ## 執行時需核對
 
 - 任務 6 仍待實際帳單核對；任務 7／8／9 已合併。[PR #23](https://github.com/husky0787/Alex/pull/23) 合併為 `a819cef`，issue #11 已關閉。[任務 10／issue #12](https://github.com/husky0787/Alex/issues/12) 在 `feat/task-10-controlled-cicd` 完成 CI/CD 驗收：[Actions 實測](https://github.com/husky0787/Alex/actions/runs/41194304688) 四項工作全通過，106 項 CI 測試及另 2 項本機 Terraform 測試通過。發布開關已關閉，ECR 測試映像與驗收叢集已清理，保留可重用的 OIDC／IAM／空 ECR 設定。見 [發布操作](../../deploy/ci/README.md) 與 [驗證紀錄](../verification/task-10-cicd.md)。自動部署目標是 GitHub runner 的一次性 Kubernetes；EKS 仍採受控人工執行同一發布工具，不能宣稱已自動化 EKS 發布。
-- 下一項 [任務 11／issue #13](https://github.com/husky0787/Alex/issues/13) 是完整作品展示與端到端驗收；仍受 issue #8（實際帳單核對）及 #12（任務 10 合併）阻擋，不可把既有隔離測試當成完整使用者流程已驗收。
+- [任務 11／issue #13](https://github.com/husky0787/Alex/issues/13) 已解除阻擋：使用者確認費用核對獨立追蹤，#12 已完成。真實 Brave／Clerk → 本機 API → 隔離 AWS Planner／三個分析 workers → 保存結果已通過；使用者確認行情日期／歷史與報告畫面。Tagger 是另外的分類預檢，研究來源沿用 Task6 真實紀錄。見 [作品入口](../showcase/README.md)、[Task11 證據與目前清理狀態](../verification/task-11-showcase.md)；不可把這次本機 API 驗收寫成新的 EKS 整合部署。
 - 核對可用的行情供應商方案與帳號能力，再確定排程和回補方式。
 - 實作規格中已確認的缺漏、過期及研究不可用行為，留下驗證證據。
 

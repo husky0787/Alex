@@ -47,7 +47,7 @@ interface Instrument {
 }
 
 export default function Dashboard() {
-  const { getToken, isLoaded: authLoaded, isSignedIn } = useAuth();
+  const { getToken, isLoaded: authLoaded, isSignedIn, sessionId } = useAuth();
   const [userData, setUserData] = useState<UserData | null>(null);
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [positions, setPositions] = useState<Record<string, Position[]>>({});
@@ -106,9 +106,16 @@ export default function Dashboard() {
 
   // Load user data and accounts
   useEffect(() => {
+    if (!authLoaded || !isSignedIn) return;
+    const controller = new AbortController();
+    const { signal } = controller;
+
     async function loadData() {
+      setLoading(true);
+      setError(null);
       try {
         const token = await getToken();
+        if (signal.aborted) return;
         if (!token) {
           setError("Not authenticated");
           setLoading(false);
@@ -117,6 +124,7 @@ export default function Dashboard() {
 
         // Get/create user
         const userResponse = await fetch(`${API_URL}/api/user`, {
+          signal,
           headers: {
             "Authorization": `Bearer ${token}`,
           },
@@ -127,6 +135,7 @@ export default function Dashboard() {
         }
 
         const response = await userResponse.json();
+        if (signal.aborted) return;
         const userData = response.user; // Extract user from response
         setUserData(userData);
         setDisplayName(userData.display_name || "");
@@ -145,6 +154,7 @@ export default function Dashboard() {
 
         // Get accounts
         const accountsResponse = await fetch(`${API_URL}/api/accounts`, {
+          signal,
           headers: {
             "Authorization": `Bearer ${token}`,
           },
@@ -152,6 +162,7 @@ export default function Dashboard() {
 
         if (accountsResponse.ok) {
           const accountsData = await accountsResponse.json();
+          if (signal.aborted) return;
           setAccounts(accountsData);
 
           // Get positions for each account
@@ -166,6 +177,7 @@ export default function Dashboard() {
             }
 
             const positionsResponse = await fetch(`${API_URL}/api/accounts/${account.id}/positions`, {
+              signal,
               headers: {
                 "Authorization": `Bearer ${token}`,
               },
@@ -173,6 +185,7 @@ export default function Dashboard() {
 
             if (positionsResponse.ok) {
               const positionsData = await positionsResponse.json();
+              if (signal.aborted) return;
               // API returns positions in a positions key
               positionsMap[account.id] = positionsData.positions || [];
 
@@ -191,6 +204,7 @@ export default function Dashboard() {
 
         // Get last analysis date from jobs endpoint
         const jobsResponse = await fetch(`${API_URL}/api/jobs`, {
+          signal,
           headers: {
             "Authorization": `Bearer ${token}`,
           },
@@ -198,6 +212,7 @@ export default function Dashboard() {
 
         if (jobsResponse.ok) {
           const jobsData = await jobsResponse.json();
+          if (signal.aborted) return;
           const lastJob = (jobsData.jobs || []).find(
             (job: { status: string }) => job.status === "completed"
           );
@@ -207,15 +222,17 @@ export default function Dashboard() {
         }
 
       } catch (err) {
+        if (signal.aborted) return;
         console.error("Error loading data:", err);
         setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
-        setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     }
 
     loadData();
-  }, [authLoaded, isSignedIn, getToken]);
+    return () => controller.abort();
+  }, [authLoaded, isSignedIn, sessionId, getToken]);
 
   // Listen for analysis completion events to refresh data
   useEffect(() => {

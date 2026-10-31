@@ -1,10 +1,14 @@
 # Alex | Multi-Agent Portfolio Intelligence Platform
 
-Alex is an event-driven portfolio intelligence application deployed end to end on AWS. Authenticated users manage accounts and holdings, trigger asynchronous portfolio analysis, and retrieve persistent reports, visualizations, and retirement projections.
+Alex is a course-based portfolio intelligence application extended with verified daily market data, recoverable ETL, frozen analysis prices, research provenance, Kubernetes operations and controlled delivery. Authenticated users manage holdings and retrieve persistent reports, charts and retirement projections.
 
-The system combines a Next.js client with a serverless Python backend, an Aurora PostgreSQL data model, a vector-backed research knowledge base, and specialized AI agents coordinated through SQS.
+**Start here:** [project showcase and contribution boundaries](docs/showcase/README.md) · [full architecture, including data engineering and Kubernetes](docs/showcase/architecture.md) · [45-second evidence walkthrough](docs/showcase/walkthrough.mp4) · [reproduce and clean up](deploy/showcase/README.md) · [real authenticated acceptance](docs/verification/task-11-showcase.md).
+
+The foundation is Ed Donner's *AI in Production* course. The linked evidence separates course features from personal additions, real tests from injected fixtures, and historical acceptance from currently deployed services. The acceptance environments are temporary; this repository does not promise an always-on public demo.
 
 ## Architecture
+
+The original serverless application path is below. The [full component map](docs/showcase/architecture.md) also shows the Kubernetes API/ETL alternative and distinguishes the separate acceptance environments.
 
 ```mermaid
 flowchart LR
@@ -17,7 +21,7 @@ flowchart LR
     APILambda -->|Create analysis job| Queue[SQS]
 
     Queue --> Planner[Planner Lambda]
-    Planner -->|Classify missing instruments| Tagger[Tagger Lambda]
+    Operator[Explicit classification preflight] --> Tagger[Tagger Lambda]
     Tagger -->|Reference data| Aurora
     Planner --> Reporter[Reporter Lambda]
     Planner --> Charter[Charter Lambda]
@@ -39,15 +43,16 @@ flowchart LR
 ## System Behavior
 
 1. A signed-in user submits an analysis request through the API.
-2. The API creates a job in Aurora and sends its ID to SQS.
-3. The Planner consumes the message, enriches missing instrument data when necessary, refreshes market data, and coordinates the specialist agents.
+2. The API freezes holdings and verified daily prices in a job snapshot, creates the job in Aurora and sends its ID to SQS.
+3. The Planner uses that fixed snapshot and coordinates Reporter, Charter and Retirement. Tagger classification is a separate preflight in the validated flow; missing required prices fail explicitly instead of being generated.
 4. Reporter, Charter, and Retirement persist their outputs in separate job payloads. The client polls job status and renders the completed result.
 5. Independently, the optional scheduled Researcher gathers market context through a Playwright MCP server and adds embedded documents to the S3 Vectors knowledge base.
 
 ## Engineering Highlights
 
 - **Asynchronous orchestration:** SQS decouples request handling from long-running agent execution; a dead-letter queue retains messages that exhaust retry attempts.
-- **Specialized workloads:** the Planner delegates enrichment, narrative reporting, chart generation, and retirement projections to independently deployable Lambda functions.
+- **Specialized workloads:** the Planner delegates narrative reporting, charts and retirement projections to independently deployable Lambda functions; Tagger classifies instruments separately.
+- **Data engineering and operations:** daily market ingestion, quality quarantine, backfill and idempotency; API/ETL Kubernetes workloads with bounded EKS acceptance, workload IAM, alerts and rollback.
 - **Durable, isolated outputs:** agents write to dedicated Aurora JSONB job fields rather than requiring a shared in-memory result merger.
 - **AI integration:** OpenAI Agents SDK runs against Amazon Bedrock; the Tagger uses structured outputs, while tool-oriented agents use purpose-built data and retrieval tools.
 - **Knowledge retrieval:** financial research is embedded by SageMaker and indexed in S3 Vectors for semantic retrieval.
@@ -66,6 +71,8 @@ flowchart LR
 | Delivery and observability | Terraform, Docker, CloudFront, CloudWatch, LangFuse |
 
 ## Run Locally
+
+For the validated personal-project flow, use the [isolated showcase runbook](deploy/showcase/README.md). The commands below are the original application entry points and require their own matching deployed configuration; they do not create the showcase or its market database.
 
 ### Prerequisites
 
@@ -107,6 +114,8 @@ uv run test_full.py
 Individual agents also provide `test_simple.py` and `test_full.py` within their respective directories.
 
 ## Deploy to AWS
+
+The following is the original guide deployment order. For the personal extension, choose the [showcase](deploy/showcase/README.md), [EKS](deploy/eks/README.md) or [controlled CI](deploy/ci/README.md) runbook and its corresponding state; do not apply all of them as one environment.
 
 Terraform is intentionally split into independent components. Each component maintains its own local state and requires a `terraform.tfvars` file created from its corresponding example before it is applied.
 
