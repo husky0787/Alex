@@ -23,6 +23,7 @@ from mangum import Mangum
 from dotenv import load_dotenv
 from fastapi_clerk_auth import ClerkConfig, ClerkHTTPBearer, HTTPAuthorizationCredentials
 from market_data.repository import PriceRepository
+from market_data.executions import ExecutionRepository
 from market_data.analysis import capture_snapshot, PricesUnavailable
 from market_data.universe import require_symbol, universe_metadata
 from market_data.calendar import history_window
@@ -155,6 +156,22 @@ class AnalyzeResponse(BaseModel):
 @app.get("/api/market-data/universe")
 def get_market_universe(clerk_user_id: str = Depends(get_current_user_id)):
     return JSONResponse(content=universe_metadata(), headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/market-data/status")
+def get_market_status(clerk_user_id: str = Depends(get_current_user_id)):
+    database_url = os.getenv("MARKET_DATABASE_URL")
+    if not database_url:
+        raise HTTPException(status_code=503, detail="Market data is not configured")
+    try:
+        with psycopg.connect(database_url, autocommit=True, connect_timeout=5) as connection:
+            executions = ExecutionRepository(PriceRepository(connection))
+            result = {"health": executions.health(datetime.now(timezone.utc)),
+                      "executions": executions.recent(), "alerts": executions.alerts()}
+        return JSONResponse(content=result, headers={"Cache-Control": "no-store"})
+    except psycopg.Error as exc:
+        logger.error("Market execution database unavailable: %s", type(exc).__name__)
+        raise HTTPException(status_code=503, detail="Market data temporarily unavailable") from None
 
 
 @app.get("/api/market-data/{symbol}/history")

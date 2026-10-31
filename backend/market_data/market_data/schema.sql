@@ -74,6 +74,30 @@ CREATE TABLE IF NOT EXISTS market_observations (
     PRIMARY KEY (run_id, price_id)
 );
 ALTER TABLE market_attempts ADD COLUMN IF NOT EXISTS retry_at TIMESTAMPTZ;
+
+-- Task 8: durable scheduled/manual execution summaries and alert events.
+CREATE TABLE IF NOT EXISTS market_executions (
+    id UUID PRIMARY KEY,
+    sequence BIGSERIAL,
+    mode TEXT NOT NULL CHECK (mode IN ('daily', 'backfill')),
+    from_date DATE NOT NULL,
+    to_date DATE NOT NULL CHECK (to_date >= from_date),
+    symbols TEXT[] NOT NULL,
+    started_at TIMESTAMPTZ NOT NULL,
+    finished_at TIMESTAMPTZ,
+    status TEXT NOT NULL CHECK (status IN ('running', 'succeeded', 'partial', 'failed', 'blocked')),
+    error_code TEXT,
+    results JSONB NOT NULL DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS market_alerts (
+    id UUID PRIMARY KEY,
+    dedup_key TEXT NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL,
+    code TEXT NOT NULL,
+    execution_id UUID REFERENCES market_executions(id),
+    details JSONB NOT NULL
+);
+ALTER TABLE market_executions ADD COLUMN IF NOT EXISTS run_summaries JSONB NOT NULL DEFAULT '[]';
 -- Preserve provenance of prices loaded before this migration.
 INSERT INTO market_observations (run_id, price_id, observed_at)
     SELECT p.run_id, p.id, p.fetched_at FROM daily_prices p
