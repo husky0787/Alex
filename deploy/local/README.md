@@ -14,6 +14,8 @@ test evidence. Do not reuse a tag for different source revisions.
 docker build --platform linux/amd64 -f backend/api/Dockerfile -t alex-api:<revision> backend
 docker pull postgres:17.6
 docker pull rancher/k3s:v1.35.5-k3s1
+docker pull rancher/mirrored-pause:3.6
+docker pull rancher/mirrored-coredns-coredns:1.14.3
 uv run --no-project deploy/local/run.py up --image alex-api:<revision>
 uv run --no-project deploy/local/run.py recovery --image alex-api:<revision>
 uv run --no-project deploy/local/run.py down
@@ -24,8 +26,10 @@ build label. Optional `--k3d /path/to/k3d` and `--postgres-image <cached-referen
 support tools/images already installed on a builder. An existing PostgreSQL
 container is never reused; only its image can be loaded into the new cluster.
 The API and dependency manifests use `imagePullPolicy: Never`; the runner loads
-the selected images before creating workloads. Cluster system images may require
-network access on first startup.
+the selected images before creating workloads. The pinned pause/CoreDNS images
+are also imported so node-side registry access is unnecessary for these workloads.
+k3d itself downloads its versioned tools image on first startup; the Docker host
+must be able to reach its registry, directly or through its configured proxy.
 
 The runner owns only cluster `alex-task07` and namespace `alex-local`. It does not
 change the user's default kubeconfig. The API is exposed at

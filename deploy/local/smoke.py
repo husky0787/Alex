@@ -39,7 +39,7 @@ with httpx.Client(base_url='http://127.0.0.1:18080',timeout=15) as client:
     check(client.get(f'/api/accounts/{aid}/positions',headers=headers(bob)),403)
     check(client.put(f'/api/accounts/{aid}',headers=headers(bob),json={'account_name':'Forbidden'}),403)
     accounts=check(client.get('/api/accounts',headers=headers(bob)),200)
-    assert not accounts['accounts']
+    assert accounts == []
     check(client.get('/api/does-not-exist',headers=headers(alice)),404)
     job=check(client.post('/api/analyze',headers=headers(alice),json={}),200)
     saved=check(client.get('/api/jobs/'+job['job_id'],headers=headers(alice)),200)

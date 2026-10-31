@@ -1,6 +1,6 @@
 # Alex 第一版規劃
 
-更新日期：2026-10-31。狀態：任務 1–5 已合併至 `main`；任務 6 的本機研究鏈實作已於 PR #19 合併，容器驗證與兩條雲端流程均已通過，仍待實際帳單核對。GitHub Issues 是狀態主要來源。
+更新日期：2026-10-31。狀態：任務 1–5 已合併至 `main`；任務 6 的 PR #19／#20 均已合併，雲端功能驗收通過，仍待實際帳單核對。任務 7 的本機 Kubernetes API、授權與恢復驗收已通過，分支待合併。GitHub Issues 是狀態主要來源。
 
 規格：[alex-v1-spec.md](alex-v1-spec.md)。任務：[任務清單](alex-v1-tickets/README.md)。
 
@@ -12,13 +12,15 @@
 | 2：真實行情從來源到畫面 | [#15](https://github.com/husky0787/Alex/pull/15) | [驗證與 63/63 AAPL 來源證據](../verification/task-02-verified-price.md) |
 | 3：品質隔離與失敗恢復 | [#16](https://github.com/husky0787/Alex/pull/16) | [測試與遷移驗證](../verification/task-03-quality-recovery.md) |
 
-任務 3 合併 commit：`49e3a4e36b260ed7bb1e6ccf9a1c8591f2a58bc9`。上述結果以本機測試為主；新管線尚未部署 AWS，Kubernetes 仍待實作。
+任務 3 合併 commit：`49e3a4e36b260ed7bb1e6ccf9a1c8591f2a58bc9`。上述結果以本機測試為主；新管線尚未部署 AWS，EKS 尚未驗收。
 
 任務 4 已於 PR [#17](https://github.com/husky0787/Alex/pull/17) 合併，commit `75f301cd94131e920f4debc2b3d9ef0a5d8b3ffe`；[驗證紀錄](../verification/task-04-universe-history.md)。
 
 任務 5 已新增建立工作時固定的持倉與行情快照。設定完成時 `/api/analyze` 可建立使用可信價格的分析工作；缺價或不支援的必要標的會回傳 422，未設定服務仍回傳 503。四個分析 agents 均讀取同一份快照，舊工作無快照仍會被拒絕。見 [ADR 0004](../adr/0004-analysis-price-snapshots.md) 與 [驗證紀錄](../verification/task-05-analysis-price-snapshots.md)。新程式尚未部署 AWS。
 
 任務 5 已於 PR [#18](https://github.com/husky0787/Alex/pull/18) 合併，commit `70b3201a7f3135feb277ac6b891787c1dbfc4e76`。任務 6 的本機研究來源追蹤、寫入回執與不可用處理已於 [PR #19](https://github.com/husky0787/Alex/pull/19) 合併，commit `3848f7b97998cd0360c03f7ddaca688d0c7c469e`；建置與驗收接續分支為 `feat/task-06-container-acceptance`、[PR #20](https://github.com/husky0787/Alex/pull/20)。使用者於 2026-10-31 恢復 AWS 驗收；真實研究入庫、檢索、隔離 Reporter 報告與不可用降級均已通過。任務 6 仍待實際帳單核對，見 [AWS 驗收證據](../verification/task-06-aws-acceptance.md)。
+
+PR #20 已合併為 `52395b5208c0bd04d2bb992de314273750b48762`。任務 7 接續分支為 `feat/task-07-local-kubernetes-api`：本機 k3d 的登入／授權 smoke、Pod 自動重建、故障版本回滾和 readiness 恢復均通過，測試叢集已清理。見 [任務 7 證據](../verification/task-07-local-kubernetes-api.md) 與 [重現步驟](../../deploy/local/README.md)。
 
 換機時 clone／更新本儲存庫，安裝 Git、GitHub CLI、Python 3.12、uv、Node.js 與 PostgreSQL 工具，依 [行情模組 README](../../backend/market_data/README.md) 安裝相依套件、設定 `PG_BIN`、遷移及執行測試。文件中的 `D:/learn/...` 工具路徑只適用原電腦，請使用新電腦的安裝位置。完整應用另外需要既有 Clerk／AWS 設定。
 
@@ -73,7 +75,7 @@ AWS 官方 EKS 標準支援價格為每叢集每小時 US$0.10：
 
 ## 執行時需核對
 
-- 按已確認的規格、驗收條件和 GitHub 依賴執行；任務 5 已合併，`feat/task-06-container-acceptance` 已完成容器與兩條雲端流程驗證，任務 6 接續核對實際帳單。#9 的前置依賴亦已完成，但目前沒有開始任務 7。
+- 任務 6 接續核對實際帳單；任務 7 已於 `feat/task-07-local-kubernetes-api` 完成驗收，待合併。下一個開發項目是任務 8（issue #10）的 ETL Kubernetes 排程，開始前核對其 GitHub 依賴狀態。
 - 核對可用的行情供應商方案與帳號能力，再確定排程和回補方式。
 - 實作規格中已確認的缺漏、過期及研究不可用行為，留下驗證證據。
 

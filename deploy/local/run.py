@@ -15,6 +15,7 @@ STATE = ROOT/'.local/kubernetes/task07'
 CLUSTER = 'alex-task07'
 NODE = 'k3d-alex-task07-server-0'
 NS = 'alex-local'
+SYSTEM_IMAGES = ('rancher/mirrored-pause:3.6', 'rancher/mirrored-coredns-coredns:1.14.3')
 
 
 def run(args, **kwargs):
@@ -22,7 +23,7 @@ def run(args, **kwargs):
 
 
 def kube(*args, data=None, output=False):
-    return run(['docker','exec','-i',NODE,'k3s','kubectl','-n',NS,*args],
+    return run(['docker','exec','-i',NODE,'kubectl','-n',NS,*args],
                input=data, capture_output=output).stdout
 
 
@@ -40,7 +41,7 @@ def require_owner():
 def load_image(image):
     # Avoid k3d's additional tools image. Import only into our named node.
     with subprocess.Popen(['docker','image','save',image],stdout=subprocess.PIPE) as source:
-        result=subprocess.run(['docker','exec','-i',NODE,'k3s','ctr','images','import','-'],stdin=source.stdout)
+        result=subprocess.run(['docker','exec','-i',NODE,'ctr','-n','k8s.io','images','import','--platform','linux/amd64','-'],stdin=source.stdout)
         source.stdout.close()
         assert source.wait()==0 and result.returncode==0, 'Image import failed'
 
@@ -61,13 +62,16 @@ def up(args):
         require_owner()
     if not exists:
         run([args.k3d,'cluster','create',CLUSTER,'--image','rancher/k3s:v1.35.5-k3s1',
-            '--no-lb','--no-image-volume','--servers-memory','4g','--api-port','127.0.0.1:16443',
+            '--no-lb','--servers-memory','4g','--api-port','127.0.0.1:16443',
             '-p','127.0.0.1:18080:30080@server:0:direct','--kubeconfig-update-default=false',
             '--kubeconfig-switch-context=false','--k3s-arg','--disable=traefik,metrics-server,local-storage@server:0',
             '--timeout','180s'])
         marker.write_text(json.dumps({'cluster':CLUSTER,'root':str(ROOT)}))
     load_image(args.image)
     load_image(args.postgres_image)
+    for image in SYSTEM_IMAGES:
+        load_image(image)
+    kube('rollout','status','deployment/coredns','-n','kube-system','--timeout=180s')
     kube('apply','-f','-',data=json.dumps({'apiVersion':'v1','kind':'Namespace','metadata':{'name':NS}}))
     if not (STATE/'config-private.json').exists():
         image_script(args.image,'prepare.py')
@@ -100,7 +104,7 @@ def recovery(args):
     # A syntactically valid image update that cannot start; old replicas remain ready.
     kube('set','image','deployment/api','api=alex-api:task07-intentionally-missing')
     try:
-        run(['docker','exec',NODE,'k3s','kubectl','-n',NS,'rollout','status','deployment/api','--timeout=90s'],capture_output=True)
+        run(['docker','exec',NODE,'kubectl','-n',NS,'rollout','status','deployment/api','--timeout=90s'],capture_output=True)
         raise AssertionError('Deliberately broken rollout unexpectedly succeeded')
     except subprocess.CalledProcessError as exc:
         failed_text=exc.stdout+exc.stderr
