@@ -20,7 +20,7 @@
 
 任務 5 已於 PR [#18](https://github.com/husky0787/Alex/pull/18) 合併，commit `70b3201a7f3135feb277ac6b891787c1dbfc4e76`。任務 6 的本機研究來源追蹤、寫入回執與不可用處理已於 [PR #19](https://github.com/husky0787/Alex/pull/19) 合併，commit `3848f7b97998cd0360c03f7ddaca688d0c7c469e`；建置與驗收接續分支為 `feat/task-06-container-acceptance`、[PR #20](https://github.com/husky0787/Alex/pull/20)。使用者於 2026-10-31 恢復 AWS 驗收；真實研究入庫、檢索、隔離 Reporter 報告與不可用降級均已通過。任務 6 仍待實際帳單核對，見 [AWS 驗收證據](../verification/task-06-aws-acceptance.md)。
 
-PR #20 已合併為 `52395b5208c0bd04d2bb992de314273750b48762`。任務 7 接續分支為 `feat/task-07-local-kubernetes-api`：本機 k3d 的登入／授權 smoke、Pod 自動重建、故障版本回滾和 readiness 恢復均通過，測試叢集已清理。見 [任務 7 證據](../verification/task-07-local-kubernetes-api.md) 與 [重現步驟](../../deploy/local/README.md)。
+PR #20 已合併為 `52395b5208c0bd04d2bb992de314273750b48762`。任務 7 接續分支為 `feat/task-07-local-kubernetes-api`、[PR #21](https://github.com/husky0787/Alex/pull/21)：本機 k3d 的登入／授權 smoke、Pod 自動重建、故障版本回滾和 readiness 恢復均通過，測試叢集已清理。見 [任務 7 證據](../verification/task-07-local-kubernetes-api.md) 與 [重現步驟](../../deploy/local/README.md)。
 
 換機時 clone／更新本儲存庫，安裝 Git、GitHub CLI、Python 3.12、uv、Node.js 與 PostgreSQL 工具，依 [行情模組 README](../../backend/market_data/README.md) 安裝相依套件、設定 `PG_BIN`、遷移及執行測試。文件中的 `D:/learn/...` 工具路徑只適用原電腦，請使用新電腦的安裝位置。完整應用另外需要既有 Clerk／AWS 設定。
 
