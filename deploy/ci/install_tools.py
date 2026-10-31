@@ -9,7 +9,8 @@ BASE = f'https://github.com/k3d-io/k3d/releases/download/{VERSION}/'
 target = Path(os.environ['RUNNER_TEMP']) / 'alex-tools'
 target.mkdir(parents=True, exist_ok=True)
 checksums = urllib.request.urlopen(BASE + 'checksums.txt', timeout=60).read().decode()
-expected = next(line.split()[0] for line in checksums.splitlines() if line.split()[-1].lstrip('*') == 'k3d-linux-amd64')
+expected = next(line.split()[0] for line in checksums.splitlines()
+                if line.split() and Path(line.split()[-1].lstrip('*')).name == 'k3d-linux-amd64')
 data = urllib.request.urlopen(BASE + 'k3d-linux-amd64', timeout=60).read()
 if hashlib.sha256(data).hexdigest() != expected:
     raise SystemExit('k3d release checksum mismatch')

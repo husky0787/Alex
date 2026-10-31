@@ -143,6 +143,8 @@ jobs:
           role-duration-seconds: 1800
           aws-region: us-east-1
           allowed-account-ids: ${{ vars.ALEX_AWS_ACCOUNT_ID }}
+      - name: Verify short-lived identity and least-privilege denials
+        run: uv run --no-project deploy/ci/verify_identity.py
       - name: Publish tested archives and deploy exact ECR digests
         run: uv run --no-project deploy/ci/acceptance.py --ecr "$ECR_REPOSITORY"
       - name: Retain public AWS release evidence
