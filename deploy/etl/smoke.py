@@ -6,6 +6,7 @@ All altered schedules are restored suspended even if an assertion fails.
 """
 import argparse
 import json
+import os
 import time
 from uuid import uuid4
 
@@ -54,7 +55,9 @@ def main():
         assert probe('status')['health']['healthy']
         gap=probe('gap','middle')['date']
         warning=manual('monitor',succeed=False)
-        assert any(e['code']=='missing_session' and e['details']['trade_date']==gap for e in warning['emitted_alerts'])
+        assert any(gap in p['missing_dates'] for p in warning['health']['prices'])
+        assert any(e['code']=='missing_session' and e['details']['trade_date']==gap
+                   for e in probe('status')['alerts'])  # Existing events deduplicate on rerun.
         manual('backfill',start=gap,end=gap,symbols=['AAPL'])
         assert probe('status')['health']['healthy']
         probe('gap','latest')
@@ -93,7 +96,8 @@ def main():
         local.kube('delete','pod','-l','app=market-etl','--field-selector=status.phase=Succeeded')
         files=local.run(['docker','exec',local.NODE,'find','/var/lib/alex-market-raw','-type','f'],capture_output=True).stdout.splitlines()
         assert len(files)>=20
-        local.run(['docker','run','--rm','--network','host',
+        user = ['--user',f'{os.getuid()}:{os.getgid()}'] if hasattr(os,'getuid') else []
+        local.run(['docker','run','--rm',*user,'--network','host',
                    '-v',f'{etl.ROOT / "deploy/etl"}:/fixtures:ro','-v',f'{local.STATE}:/evidence',
                    '--entrypoint','python',args.image,'/fixtures/api_smoke.py'])
         evidence={'synthetic_quotes':True,'controller_job':cron_job,'missed_date':gap,
