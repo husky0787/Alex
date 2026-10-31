@@ -1,5 +1,8 @@
 # Manual EKS delivery extension
 
+Tracking: [issue #26](https://github.com/husky0787/Alex/issues/26),
+[PR #27](https://github.com/husky0787/Alex/pull/27).
+
 The operator selects **Run workflow** on `Release to temporary EKS` on `main`.
 Only an exact-commit, successful main-branch `ci.yml` run from this repository is
 eligible. The release consumes its verified image archives without rebuilding.
@@ -36,5 +39,6 @@ eligible. The release consumes its verified image archives without rebuilding.
 
 ## Verification status
 
-Implementation in progress. Do not claim this extension ran on AWS until a real
-manual Actions run and an independent absence check are recorded.
+Implementation and local review are complete; follow PR #27 for live CI state.
+Do not claim this extension ran on AWS until a real manual Actions run and an
+independent absence check are recorded.

@@ -21,6 +21,11 @@ Date: 2026-10-31. Branch: `feat/manual-eks-cd`. Baseline: `4fc26b3`.
   Current billing/credit and EC2 pricing were refreshed into private local evidence;
   account financial values are deliberately not included here.
 
+The first PR CI run passed backend/frontend but rejected the Windows-only provider
+package hash on Linux. The lock file now records official HashiCorp-signed hashes
+for both `windows_amd64` and `linux_amd64`; readonly lock validation stays enabled.
+See [PR #27 checks](https://github.com/husky0787/Alex/pull/27/checks) for current results.
+
 ## Review fixes
 
 Independent Standards review found lost Kubernetes diagnostics; the helper now
