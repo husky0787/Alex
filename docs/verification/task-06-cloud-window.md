@@ -1,6 +1,6 @@
 # Task 6 cloud acceptance window
 
-Prepared 2026-10-30. **Plan only: no resources restored and no paid inference executed.** The earlier user decision deferred cloud acceptance. PR #19 merged the local implementation; issue #8 remains open until the cloud evidence and billing reconciliation exist.
+Prepared 2026-10-30; execution resumed with explicit user authorization on 2026-10-31. The earlier deferral is superseded. Both cloud report paths passed; see [execution evidence](task-06-aws-acceptance.md). Issue #8 remains open for actual billing reconciliation. The inventory below records the original preflight, not the current resource state.
 
 ## Scope and acceptance
 

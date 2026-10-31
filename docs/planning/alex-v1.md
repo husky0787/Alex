@@ -1,6 +1,6 @@
 # Alex 第一版規劃
 
-更新日期：2026-10-30。狀態：任務 1–5 已合併至 `main`；任務 6 的本機研究鏈實作已於 PR #19 合併，容器驗證已通過，雲端驗收尚待完成。GitHub Issues 是狀態主要來源。
+更新日期：2026-10-31。狀態：任務 1–5 已合併至 `main`；任務 6 的本機研究鏈實作已於 PR #19 合併，容器驗證與兩條雲端流程均已通過，仍待實際帳單核對。GitHub Issues 是狀態主要來源。
 
 規格：[alex-v1-spec.md](alex-v1-spec.md)。任務：[任務清單](alex-v1-tickets/README.md)。
 
@@ -18,7 +18,7 @@
 
 任務 5 已新增建立工作時固定的持倉與行情快照。設定完成時 `/api/analyze` 可建立使用可信價格的分析工作；缺價或不支援的必要標的會回傳 422，未設定服務仍回傳 503。四個分析 agents 均讀取同一份快照，舊工作無快照仍會被拒絕。見 [ADR 0004](../adr/0004-analysis-price-snapshots.md) 與 [驗證紀錄](../verification/task-05-analysis-price-snapshots.md)。新程式尚未部署 AWS。
 
-任務 5 已於 PR [#18](https://github.com/husky0787/Alex/pull/18) 合併，commit `70b3201a7f3135feb277ac6b891787c1dbfc4e76`。任務 6 的本機研究來源追蹤、寫入回執與不可用處理已於 [PR #19](https://github.com/husky0787/Alex/pull/19) 合併，commit `3848f7b97998cd0360c03f7ddaca688d0c7c469e`；建置與驗收接續分支為 `feat/task-06-container-acceptance`。使用者於 2026-10-27 選擇延後雲端驗收，任務 6 尚未完成，見 [驗證及接續步驟](../verification/task-06-research-chain.md)。
+任務 5 已於 PR [#18](https://github.com/husky0787/Alex/pull/18) 合併，commit `70b3201a7f3135feb277ac6b891787c1dbfc4e76`。任務 6 的本機研究來源追蹤、寫入回執與不可用處理已於 [PR #19](https://github.com/husky0787/Alex/pull/19) 合併，commit `3848f7b97998cd0360c03f7ddaca688d0c7c469e`；建置與驗收接續分支為 `feat/task-06-container-acceptance`、[PR #20](https://github.com/husky0787/Alex/pull/20)。使用者於 2026-10-31 恢復 AWS 驗收；真實研究入庫、檢索、隔離 Reporter 報告與不可用降級均已通過。任務 6 仍待實際帳單核對，見 [AWS 驗收證據](../verification/task-06-aws-acceptance.md)。
 
 換機時 clone／更新本儲存庫，安裝 Git、GitHub CLI、Python 3.12、uv、Node.js 與 PostgreSQL 工具，依 [行情模組 README](../../backend/market_data/README.md) 安裝相依套件、設定 `PG_BIN`、遷移及執行測試。文件中的 `D:/learn/...` 工具路徑只適用原電腦，請使用新電腦的安裝位置。完整應用另外需要既有 Clerk／AWS 設定。
 
@@ -26,7 +26,7 @@
 
 ## 已確認的條件
 
-- 2026-10-27 核對 AWS API／使用者 Billing 畫面：預估剩餘 credit US$114.63，兩筆均於 2026-11-30 到期；本月至今 US$2.41，預測 US$2.90。所需研究鏈服務列於兩筆適用清單。2026-10-30 已備妥 [US$2.18 驗收情境估算](../verification/task-06-cloud-window.md)；實際雲端驗收與帳單核對仍待完成。
+- 2026-10-27 核對 AWS API／使用者 Billing 畫面：預估剩餘 credit US$114.63，兩筆均於 2026-11-30 到期；當時本月至今 US$2.41，預測 US$2.90。所需研究鏈服務列於兩筆適用清單。2026-10-31 執行前 API 更新為 US$111.81。已依 [US$2.18 驗收情境估算](../verification/task-06-cloud-window.md) 執行雲端驗收；實際帳單仍待核對。
 - 希望一個月內完成，可視進度加速；以 2026-11-25 作為目標日期。
 - 專案來源為 husky0787/Alex，本機工作目錄為 alex-husky0787。
 - 目標為可展示的個人專案，涵蓋既有 AI 應用、資料工程和 Kubernetes。
@@ -73,7 +73,7 @@ AWS 官方 EKS 標準支援價格為每叢集每小時 US$0.10：
 
 ## 執行時需核對
 
-- 按已確認的規格、驗收條件和 GitHub 依賴執行；任務 5 已合併，接續 `feat/task-06-container-acceptance` 完成容器與後續雲端驗收。#9 的前置依賴亦已完成，但目前沒有開始任務 7。
+- 按已確認的規格、驗收條件和 GitHub 依賴執行；任務 5 已合併，`feat/task-06-container-acceptance` 已完成容器與兩條雲端流程驗證，任務 6 接續核對實際帳單。#9 的前置依賴亦已完成，但目前沒有開始任務 7。
 - 核對可用的行情供應商方案與帳號能力，再確定排程和回補方式。
 - 實作規格中已確認的缺漏、過期及研究不可用行為，留下驗證證據。
 

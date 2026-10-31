@@ -5,7 +5,9 @@ output "ecr_repository_url" {
 
 output "researcher_url" {
   description = "Public HTTPS URL of the researcher Lambda"
-  value       = try(aws_lambda_function_url.researcher[0].function_url, "Not created yet - run 'uv run deploy.py'")
+  value = !var.public_url_enabled ? "Disabled - use authenticated Lambda invocation" : try(
+    aws_lambda_function_url.researcher[0].function_url, "Not created yet - run 'uv run deploy.py'"
+  )
 }
 
 output "researcher_function_name" {
@@ -22,10 +24,10 @@ output "scheduler_status" {
 
 output "setup_instructions" {
   description = "Instructions for completing setup"
-  value = local.researcher_deployed ? format(
+  value = local.researcher_deployed && var.public_url_enabled ? format(
     "✅ Researcher service deployed successfully!\n\nService URL: %s\n\nTest the researcher:\ncurl %s/health\n\n%s",
     aws_lambda_function_url.researcher[0].function_url,
     trimsuffix(aws_lambda_function_url.researcher[0].function_url, "/"),
     var.scheduler_enabled ? "⏰ Automated research is running every 2 hours" : "💡 To enable automated research, set scheduler_enabled = true"
-  ) : "Run 'uv run deploy.py' to build, push, and deploy the researcher image."
+  ) : (local.researcher_deployed ? "Invoke the Researcher with the authenticated Lambda CLI; the public URL is disabled." : "Run 'uv run deploy.py' to build, push, and deploy the researcher image.")
 }

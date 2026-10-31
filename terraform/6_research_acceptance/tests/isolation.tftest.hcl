@@ -67,3 +67,12 @@ run "reject_wildcard_models" {
   variables { bedrock_model_arns = ["arn:aws:bedrock:*:*:*"] }
   expect_failures = [var.bedrock_model_arns]
 }
+
+run "low_quota_shared_pool" {
+  command = apply
+  variables { reserved_concurrency = -1 }
+  assert {
+    condition     = aws_lambda_function.reporter.reserved_concurrent_executions == -1 && aws_lambda_function.reporter.timeout == 300 && aws_lambda_function.reporter.function_name == "alex-reporter-acceptance"
+    error_message = "The low-quota option must preserve isolation and timeout while using the shared pool."
+  }
+}

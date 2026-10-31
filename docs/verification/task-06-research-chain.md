@@ -1,6 +1,6 @@
 # Task 6: research-chain verification
 
-Status: PR #19 merged on 2026-10-30; local implementation and real-container checks pass; **cloud acceptance is not complete**. The user explicitly deferred cloud acceptance on 2026-10-27 and reaffirmed that decision on 2026-10-30 after reviewing the prepared $2.18 scenario. Issue #8 must remain open. Container/build follow-up is preserved in [draft PR #20](https://github.com/husky0787/Alex/pull/20).
+Status: PR #19 merged on 2026-10-30; local implementation and real-container checks pass. The user explicitly resumed AWS acceptance on 2026-10-31, superseding the earlier deferral. **Both cloud research-to-report and unavailable-research checks passed; actual billing reconciliation remains pending.** See [AWS execution evidence](task-06-aws-acceptance.md). Issue #8 remains open. Container/build follow-up is preserved in [draft PR #20](https://github.com/husky0787/Alex/pull/20).
 
 ## Budget evidence, 2026-10-27
 
@@ -14,7 +14,7 @@ Status: PR #19 merged on 2026-10-30; local implementation and real-container che
 
 Checked `us-east-1` and `us-west-2`: no Alex SageMaker endpoints, no vector buckets and no ECR repositories. The east-region Lambda inventory contains existing API and analysis workers, but no ingestion or Researcher function. Ordinary S3 buckets are distinct from S3 vector buckets. Private account identifiers and full inventory are kept locally, not committed.
 
-The current IAM identity cannot query Cost Explorer or list CodeBuild projects. The Windows workstation has no Docker/Podman/WSL. On 2026-10-29 a user-provided Linux builder became available through Tailscale SSH. No new paid AWS resources or model invocations were created during this work.
+At this initial inventory, the IAM identity could not query Cost Explorer or list CodeBuild projects. The Windows workstation had no Docker/Podman/WSL. On 2026-10-29 a user-provided Linux builder became available through Tailscale SSH. No new paid AWS resources or model invocations were created during that initial phase; the subsequent AWS window is recorded separately below.
 
 ## Local behavior
 
@@ -38,12 +38,14 @@ Commit `33174d1` adds optional Reporter proxy forwarding/host networking, option
 - Real browser smoke passed with `--network none --read-only --user 10001:10001` and writable `/tmp`: HTTP app health, Chromium navigation, `browser_snapshot` text, observed source URL and UTC timestamp. Output: `{"health":"passed","chromium_mcp":"passed","source_capture":"passed","aws_calls":0}`.
 - A separate container using the image's default Uvicorn command returned HTTP 200 and `status=healthy` at `/health`. It reported `alex_api_configured=false`, as expected without cloud configuration. The temporary container was stopped afterward.
 - The initial smoke incorrectly expected page text directly from navigation. Installed MCP 0.0.75 returns a snapshot file link there; explicit `browser_snapshot` returns the text, matching the existing Researcher prompt. The test now exercises both tools; no application-side fallback or output rewriting was added.
-- Both artifacts remain on the user's Linux builder; no image/ZIP was uploaded to AWS. The remote checkout has the committed source changes over its original base; its directory name alone does not identify the built revision.
+- At completion of the offline phase, both artifacts remained on the user's Linux builder without AWS upload. The remote checkout has the committed source changes over its original base; its directory name alone does not identify the built revision.
 - Packaging and optional bootstrap-index changes passed Standards and Spec review with zero findings. Follow-up review of the final smoke/deployment-flag changes also found zero Standards and zero Spec findings.
 
 The bounded cloud scenario and acceptance steps are in [task-06-cloud-window.md](task-06-cloud-window.md). These container results do not prove cloud IAM, Bedrock inference, Lambda Web Adapter invocation or the full cloud research-to-report path.
 
-## Cloud acceptance still required
+## Cloud acceptance procedure
+
+The following procedure was executed on 2026-10-31 using an isolated Reporter. See the dated [results and remaining billing step](task-06-aws-acceptance.md); this checklist preserves the reproduction procedure, not a claim that every step is still pending.
 
 1. Container builds and offline browser checks are complete. Preserve the recorded artifacts, transfer/push them securely and verify their digests before deployment. The Docker build context is `backend`, not `backend/researcher`.
 2. Complete the bounded estimate for SageMaker 3072 MB serverless, one Researcher run, ingestion/search, Reporter model, ECR image storage and logs. Keep the scheduler disabled, provisioned concurrency off and a limited test window. Include existing account spend; a planning allowance is not an AWS hard spend cap.

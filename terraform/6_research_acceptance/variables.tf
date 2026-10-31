@@ -12,6 +12,16 @@ variable "reporter_zip_path" {
   description = "Absolute path to the verified Linux Reporter ZIP; never use a dummy artifact for apply."
 }
 
+variable "reserved_concurrency" {
+  type        = number
+  default     = 1
+  description = "Use 1 where reservation is supported; -1 uses the shared pool for low-quota accounts and requires serial manual invocation."
+  validation {
+    condition     = contains([-1, 1], var.reserved_concurrency)
+    error_message = "Choose 1 (reserved) or -1 (shared pool with serial manual acceptance)."
+  }
+}
+
 variable "aurora_cluster_arn" {
   type = string
 }

@@ -88,7 +88,7 @@ resource "aws_lambda_function" "reporter" {
   architectures                  = ["x86_64"]
   memory_size                    = 1024
   timeout                        = 300
-  reserved_concurrent_executions = 1
+  reserved_concurrent_executions = var.reserved_concurrency
   tags                           = local.tags
 
   environment {
