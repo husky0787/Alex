@@ -134,4 +134,13 @@ Deploy the API and all four rebuilt agent packages together in the later deploym
 
 The Lambda packaging helper now copies this module and exports locked external API dependencies. A full Linux Lambda ZIP was not built here because Docker is unavailable; verify its size and runtime in the later deployment stage.
 
-References: [Massive Basic pricing](https://massive.com/pricing), [daily bar API](https://massive.com/docs/rest/stocks/aggregates/custom-bars), [publication timing](https://massive.com/knowledge-base/article/what-time-are-massives-flat-files-ready-each-day), [fractional shares](https://massive.com/changelog), [exchange calendar](https://github.com/gerrymanoim/exchange_calendars).
+## Scheduled and manual Kubernetes execution
+
+Task 8 adds `market_data.scheduled daily|backfill|monitor` over this same pipeline.
+Daily and manual Jobs share a database batch lock, preserve execution snapshots,
+and record alert events for failure or missing published sessions. Authenticated
+`GET /api/market-data/status` exposes current freshness, recent executions and
+alert history. Run the additive migration before using the new entry or route.
+See [local Kubernetes ETL setup, acceptance and recovery](../../deploy/etl/README.md).
+
+References: [Massive Basic pricing](https://massive.com/pricing), [daily bar API](https://massive.com/docs/rest/stocks/aggregates/custom-bars), [REST publication timing](https://massive.com/knowledge-base/article/on-the-free-basic-plan-when-can-i-pull-the-previous-trading-days-data), [fractional shares](https://massive.com/changelog), [exchange calendar](https://github.com/gerrymanoim/exchange_calendars).

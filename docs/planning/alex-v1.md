@@ -1,6 +1,6 @@
 # Alex 第一版規劃
 
-更新日期：2026-10-31。狀態：任務 1–5 已合併至 `main`；任務 6 的 PR #19／#20 均已合併，雲端功能驗收通過，仍待實際帳單核對。任務 7 的本機 Kubernetes API、授權與恢復驗收已通過，分支待合併。GitHub Issues 是狀態主要來源。
+更新日期：2026-10-31。狀態：任務 1–5 已合併至 `main`；任務 6 的 PR #19／#20 均已合併，雲端功能驗收通過，仍待實際帳單核對。任務 7 的本機 Kubernetes API、授權與恢復驗收已通過，PR #21 已合併。任務 8 的 ETL 排程與手動回補已於 `feat/task-08-scheduled-etl` 通過本機 Kubernetes 驗收，待合併。GitHub Issues 是狀態主要來源。
 
 規格：[alex-v1-spec.md](alex-v1-spec.md)。任務：[任務清單](alex-v1-tickets/README.md)。
 
@@ -20,9 +20,11 @@
 
 任務 5 已於 PR [#18](https://github.com/husky0787/Alex/pull/18) 合併，commit `70b3201a7f3135feb277ac6b891787c1dbfc4e76`。任務 6 的本機研究來源追蹤、寫入回執與不可用處理已於 [PR #19](https://github.com/husky0787/Alex/pull/19) 合併，commit `3848f7b97998cd0360c03f7ddaca688d0c7c469e`；建置與驗收接續分支為 `feat/task-06-container-acceptance`、[PR #20](https://github.com/husky0787/Alex/pull/20)。使用者於 2026-10-31 恢復 AWS 驗收；真實研究入庫、檢索、隔離 Reporter 報告與不可用降級均已通過。任務 6 仍待實際帳單核對，見 [AWS 驗收證據](../verification/task-06-aws-acceptance.md)。
 
-PR #20 已合併為 `52395b5208c0bd04d2bb992de314273750b48762`。任務 7 接續分支為 `feat/task-07-local-kubernetes-api`、[PR #21](https://github.com/husky0787/Alex/pull/21)：本機 k3d 的登入／授權 smoke、Pod 自動重建、故障版本回滾和 readiness 恢復均通過，測試叢集已清理。見 [任務 7 證據](../verification/task-07-local-kubernetes-api.md) 與 [重現步驟](../../deploy/local/README.md)。
+PR #20 已合併為 `52395b5208c0bd04d2bb992de314273750b48762`。任務 7 的 [PR #21](https://github.com/husky0787/Alex/pull/21) 已合併為 `72a967a`，issue #9 已關閉：本機 k3d 的登入／授權 smoke、Pod 自動重建、故障版本回滾和 readiness 恢復均通過，測試叢集已清理。見 [任務 7 證據](../verification/task-07-local-kubernetes-api.md) 與 [重現步驟](../../deploy/local/README.md)。
 
 換機時 clone／更新本儲存庫，安裝 Git、GitHub CLI、Python 3.12、uv、Node.js 與 PostgreSQL 工具，依 [行情模組 README](../../backend/market_data/README.md) 安裝相依套件、設定 `PG_BIN`、遷移及執行測試。文件中的 `D:/learn/...` 工具路徑只適用原電腦，請使用新電腦的安裝位置。完整應用另外需要既有 Clerk／AWS 設定。
+
+任務 8 新增共用的每日／手動 ETL 入口、批次鎖、完成時的執行快照、缺漏監控和告警事件，以及 `/api/market-data/status`。59 項後端、13 項 API 測試通過；實際 CronJob／手動 Job 競爭、品質失敗、漏資料回補及授權 API 均已驗收。見 [任務 8 證據](../verification/task-08-scheduled-etl.md) 與 [重現／操作步驟](../../deploy/etl/README.md)。行情為隔離的合成資料；下一階段才驗證 EKS、AWS 身分及實際告警送達。
 
 `.env`、AWS 登入資料與 `.local/` 私人行情不在版本庫；需要時安全移轉或重新設定。自訂 Codex skills 也須另行安裝。`.planning/` 僅保留本機執行過程，接續開發以本文件、GitHub Issues、ADR 和已提交的驗證文件為準。
 
@@ -75,7 +77,7 @@ AWS 官方 EKS 標準支援價格為每叢集每小時 US$0.10：
 
 ## 執行時需核對
 
-- 任務 6 接續核對實際帳單；任務 7 已於 `feat/task-07-local-kubernetes-api` 完成驗收，待合併。下一個開發項目是任務 8（issue #10）的 ETL Kubernetes 排程，開始前核對其 GitHub 依賴狀態。
+- 任務 6 接續核對實際帳單；任務 7 已合併。任務 8（issue #10）已驗收，待合併；下一項為任務 9（issue #11）的限時 EKS 驗收，開始前核對依賴及更新 credit／完整成本估算。
 - 核對可用的行情供應商方案與帳號能力，再確定排程和回補方式。
 - 實作規格中已確認的缺漏、過期及研究不可用行為，留下驗證證據。
 
