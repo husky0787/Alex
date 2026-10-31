@@ -10,6 +10,8 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import time
+import urllib.error
 import urllib.request
 from uuid import uuid4
 
@@ -28,6 +30,26 @@ def healthy(deployment):
     return (desired > 0 and status.get('observedGeneration', 0) >= deployment['metadata']['generation']
             and all(status.get(field, 0) == desired for field in
                     ('updatedReplicas', 'readyReplicas', 'availableReplicas')))
+
+
+def check_http(url, observations):
+    """Allow bounded route/readiness convergence after a completed rolling update."""
+    for attempt in range(10):
+        try:
+            for endpoint in ('/health', '/ready'):
+                with urllib.request.urlopen(url.rstrip('/') + endpoint, timeout=5) as response:
+                    if response.status != 200:
+                        raise ReleaseError(f'{endpoint} did not return 200')
+            observations.append({'attempt': attempt + 1, 'status': 'healthy'})
+            return
+        except (OSError, urllib.error.URLError) as exc:
+            observations.append({'attempt': attempt + 1, 'error': str(exc)})
+            # Authentication/configuration errors are not propagation delays.
+            if isinstance(exc, urllib.error.HTTPError) and exc.code < 500:
+                raise ReleaseError(str(exc)) from exc
+            if attempt == 9:
+                raise ReleaseError(f'HTTP readiness failed after 10 bounded probes: {exc}') from exc
+            time.sleep(2)
 
 
 class Kubernetes:
@@ -126,11 +148,10 @@ def main():
     parser.add_argument('--evidence', required=True, type=Path)
     args = parser.parse_args()
 
+    observations = []
+
     def smoke():
-        for endpoint in ('/health', '/ready'):
-            with urllib.request.urlopen(args.url.rstrip('/') + endpoint, timeout=15) as response:
-                if response.status != 200:
-                    raise ReleaseError(f'{endpoint} did not return 200')
+        check_http(args.url, observations)
 
     evidence = {'commit': args.commit, 'image': args.image,
                 'target': {'context': args.context, 'namespace': args.namespace, 'deployment': args.deployment}}
@@ -139,6 +160,7 @@ def main():
         evidence.update(release(client, args.image, args.commit, smoke))
     except (ReleaseError, OSError) as exc:
         evidence.update(status='rejected', failure=str(exc))
+    evidence['http_probes'] = observations
     args.evidence.parent.mkdir(parents=True, exist_ok=True)
     args.evidence.write_text(json.dumps(evidence, indent=2) + '\n')
     print(json.dumps(evidence))

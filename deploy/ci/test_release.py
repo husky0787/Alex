@@ -1,7 +1,8 @@
 """Release behavior at the Kubernetes boundary; live drills run separately."""
 from copy import deepcopy
 import unittest
-from release import release, ReleaseError
+from unittest.mock import patch, MagicMock
+from release import release, ReleaseError, check_http
 
 OLD = 'registry.example/api@sha256:' + '1' * 64
 NEW = 'registry.example/api@sha256:' + '2' * 64
@@ -35,6 +36,22 @@ class Cluster:
 
 
 class ReleaseTests(unittest.TestCase):
+    def test_transient_route_reset_is_retained_then_rechecked(self):
+        observations = []
+        response = MagicMock()
+        response.__enter__.return_value.status = 200
+        with patch('release.urllib.request.urlopen', side_effect=[ConnectionResetError('route reset'), response, response]), patch('release.time.sleep'):
+            check_http('http://localhost', observations)
+        self.assertEqual(observations[0]['error'], 'route reset')
+        self.assertEqual(observations[-1]['status'], 'healthy')
+
+    def test_persistent_route_failure_stays_failed_after_bounded_probes(self):
+        observations = []
+        with patch('release.urllib.request.urlopen', side_effect=ConnectionResetError('still broken')), patch('release.time.sleep'):
+            with self.assertRaisesRegex(ReleaseError, 'after 10 bounded probes'):
+                check_http('http://localhost', observations)
+        self.assertEqual(len(observations), 10)
+
     def test_success_records_commit_and_both_immutable_images(self):
         cluster = Cluster()
         result = release(cluster, NEW, COMMIT, lambda: None)
