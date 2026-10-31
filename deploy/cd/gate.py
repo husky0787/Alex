@@ -6,7 +6,7 @@ import urllib.parse
 import urllib.request
 
 REPO = 'husky0787/Alex'
-REQUIRED = {'backend', 'frontend', 'image-and-rollout'}
+REQUIRED = {'backend', 'frontend', 'infrastructure', 'image-and-rollout'}
 
 
 def eligible(run, sha):

@@ -9,8 +9,12 @@ eligible. The release consumes its verified image archives without rebuilding.
 - No deployment on a push, PR, or failed/in-progress CI run.
 - Separate OIDC roles: deployment can publish only its dedicated ECR images and
   operate one CloudFormation stack; CloudFormation can provision the bounded EKS
-  environment using pre-created cluster/node roles. No application secrets or
-  original Aurora, Lambda, CloudFront, or EC2 modification permissions.
+  environment using pre-created cluster/node roles. Deployment/CloudFormation
+  permissions exclude application secrets and original Aurora/Lambda/CloudFront
+  changes; their direct EC2 mutations require owned resource tags. The standard
+  node CNI policy is a documented exception: it has account-wide ENI operations.
+  IMDSv2 with response hop limit 1 prevents ordinary application Pods from obtaining
+  node credentials. This is not a claim of fully VPC-scoped CNI permissions.
 - CloudFormation owns a temporary VPC, public subnets, routing, EKS control plane,
   managed two-node group and EKS access entry. Kubernetes endpoint permits only the
   current runner IPv4 /32. No SSH, NAT gateway, load balancer or persistent volume.

@@ -104,19 +104,19 @@ resource "aws_iam_role_policy" "cloudformation" {
     { Effect = "Allow", Action = ["iam:GetRole"], Resource = [aws_iam_role.cluster.arn, aws_iam_role.node.arn] },
     { Effect = "Allow", Action = ["ec2:DescribeVpcs", "ec2:DescribeSubnets", "ec2:DescribeRouteTables",
       "ec2:DescribeInternetGateways", "ec2:DescribeAvailabilityZones", "ec2:DescribeVpcAttribute",
-    "ec2:DescribeSecurityGroups", "ec2:DescribeNetworkInterfaces"], Resource = "*" },
-    { Effect = "Allow", Action = ["ec2:CreateVpc", "ec2:CreateSubnet", "ec2:CreateRouteTable", "ec2:CreateInternetGateway"],
+    "ec2:DescribeSecurityGroups", "ec2:DescribeNetworkInterfaces", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions"], Resource = "*" },
+    { Effect = "Allow", Action = ["ec2:CreateVpc", "ec2:CreateSubnet", "ec2:CreateRouteTable", "ec2:CreateInternetGateway", "ec2:CreateLaunchTemplate"],
     Resource = "*", Condition = { StringEquals = { "aws:RequestTag/Purpose" = "manual-eks-cd" } } },
     # CreateSubnet/CreateRouteTable also authorize their existing parent VPC.
     { Effect   = "Allow", Action = ["ec2:CreateSubnet", "ec2:CreateRouteTable"],
       Resource = "arn:aws:ec2:us-east-1:${local.account}:vpc/*",
     Condition = { StringEquals = { "ec2:ResourceTag/Purpose" = "manual-eks-cd" } } },
     { Effect = "Allow", Action = ["ec2:CreateTags"], Resource = "arn:aws:ec2:us-east-1:${local.account}:*/*",
-    Condition = { StringEquals = { "ec2:CreateAction" = ["CreateVpc", "CreateSubnet", "CreateRouteTable", "CreateInternetGateway"] } } },
+    Condition = { StringEquals = { "ec2:CreateAction" = ["CreateVpc", "CreateSubnet", "CreateRouteTable", "CreateInternetGateway", "CreateLaunchTemplate"] } } },
     { Effect = "Allow", Action = ["ec2:DeleteVpc", "ec2:DeleteSubnet", "ec2:DeleteRouteTable", "ec2:DeleteInternetGateway",
       "ec2:ModifyVpcAttribute", "ec2:ModifySubnetAttribute", "ec2:AttachInternetGateway", "ec2:DetachInternetGateway",
       "ec2:CreateRoute", "ec2:DeleteRoute", "ec2:AssociateRouteTable", "ec2:DisassociateRouteTable",
-      "ec2:CreateTags", "ec2:DeleteTags"], Resource = "arn:aws:ec2:us-east-1:${local.account}:*/*",
+      "ec2:CreateTags", "ec2:DeleteTags", "ec2:DeleteLaunchTemplate"], Resource = "arn:aws:ec2:us-east-1:${local.account}:*/*",
     Condition = { StringEquals = { "ec2:ResourceTag/Purpose" = "manual-eks-cd" } } }
   ] })
 }

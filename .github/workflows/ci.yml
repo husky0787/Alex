@@ -77,8 +77,28 @@ jobs:
           NEXT_PUBLIC_API_URL: https://api.example.invalid
         run: npm run build
 
+  infrastructure:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: '0.13.6'
+          python-version: '3.12'
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: '1.16.4'
+          terraform_wrapper: false
+      - run: uv tool run --from cfn-lint==1.59.0 cfn-lint deploy/cd/stack.yaml
+      - run: terraform -chdir=terraform/12_cd init -backend=false -input=false -lockfile=readonly
+      - run: terraform -chdir=terraform/12_cd validate
+      - run: terraform -chdir=terraform/12_cd test
+
   image-and-rollout:
-    needs: [backend, frontend]
+    needs: [backend, frontend, infrastructure]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:

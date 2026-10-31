@@ -3,7 +3,7 @@ from contextlib import contextmanager
 import argparse
 import json
 import os
-from pathlib import Path
+import re
 import subprocess
 import sys
 import threading
@@ -22,8 +22,19 @@ def command(*args, **kwargs):
 
 
 def kube(*args, data=None):
-    return command('kubectl', '--kubeconfig', STATE / 'kubeconfig', '--context', STACK,
-        '-n', NS, '--request-timeout=30s', *args, input=data, capture_output=True).stdout
+    result = subprocess.run(['kubectl', '--kubeconfig', str(STATE / 'kubeconfig'), '--context', STACK,
+        '-n', NS, '--request-timeout=30s', *args], input=data, text=True, capture_output=True)
+    if result.returncode:
+        STATE.mkdir(parents=True, exist_ok=True)
+        diagnostic = STATE / 'kubectl-private.log'
+        diagnostic.write_text(result.stdout + '\n' + result.stderr, encoding='utf-8')
+        diagnostic.chmod(0o600)
+        reason = re.search(r'Error from server \(([A-Za-z0-9]+)\)', result.stderr)
+        safe_reason = reason.group(1) if reason else 'KubernetesCommandFailed'
+        evidence('failure.json', {'operation': args[0], 'exit_code': result.returncode,
+            'reason': safe_reason, 'diagnostic': 'Private runner log; not uploaded'})
+        raise RuntimeError(f'kubectl {args[0]}: {safe_reason}, exit {result.returncode}')
+    return result.stdout
 
 
 def docker_script(image, script):
@@ -111,6 +122,14 @@ def main():
         'imagePullPolicy: Never', 'imagePullPolicy: IfNotPresent').replace('type: NodePort', 'type: ClusterIP').replace(', nodePort: 30080', '')
     kube('apply', '-f', '-', data=api)
     kube('rollout', 'status', 'deployment/api', '--timeout=240s')
+    # IMDSv2 hop limit 1 must deny the ordinary application Pod a node token.
+    kube('exec', 'deployment/api', '--', 'python', '-c',
+        'import urllib.request, urllib.error, sys\n'
+        'request=urllib.request.Request("http://169.254.169.254/latest/api/token", '
+        'method="PUT",headers={"X-aws-ec2-metadata-token-ttl-seconds":"60"})\n'
+        'try:\n urllib.request.urlopen(request,timeout=3)\n'
+        'except (OSError,urllib.error.URLError):\n sys.exit(0)\n'
+        'raise SystemExit("Application Pod can access node metadata token")')
     with forward():
         docker_script(baseline, 'smoke.py')
         schema_query = "SELECT table_name,column_name,data_type,is_nullable,column_default FROM information_schema.columns WHERE table_schema='public' ORDER BY table_name,ordinal_position"
@@ -130,7 +149,8 @@ def main():
     evidence('summary.json', {'environment': 'AWS EKS', 'commit': manifest['commit'],
         'source_ci_run': os.environ['SOURCE_CI_RUN'], 'images': images, 'fixtures': True,
         'healthy_release': True, 'failed_release_rolled_back': True,
-        'authenticated_smoke_after_each': True, 'database_schema_unchanged': True})
+        'authenticated_smoke_after_each': True, 'database_schema_unchanged': True,
+        'application_node_credentials_blocked': True})
 
 
 if __name__ == '__main__':

@@ -40,6 +40,11 @@ cluster. CloudFormation may create tagged network resources and the named EKS
 cluster, and pass the fixed node/cluster roles. It cannot create arbitrary IAM
 roles. Node roles use standard EKS worker/CNI/ECR policies. These infrastructure
 permissions are broader than namespace-only app deployment; review them as such.
+In particular, the standard CNI policy permits account-wide ENI operations. The
+worker launch template requires IMDSv2 and hop limit 1, and application Pods use
+neither host networking nor service-account tokens, to prevent ordinary Pods from
+obtaining node credentials. A node/privileged CNI compromise still has this broader
+permission; this setup does not claim VPC-scoped CNI least privilege.
 
 ## Release evidence and failure behavior
 
@@ -71,7 +76,7 @@ First inspect **Recover temporary EKS** and CloudFormation events for the exact
 An authorized operator can recover a known completed run from a trusted checkout:
 
 ```text
-uv run --no-project deploy/cd/lifecycle.py recover --completed-run GITHUB_RUN_ID
+uv run --no-project deploy/cd/lifecycle.py recover --completed-run GITHUB_RUN_ID --completed-attempt RUN_ATTEMPT
 ```
 
 Set `ALEX_CD_CF_ROLE_ARN` and `ALEX_CD_REPOSITORY` from private bootstrap output,
@@ -93,6 +98,11 @@ two t3.medium nodes, 40 GiB EBS, two public IPv4s, registry storage, transfer an
 possible burst CPU charges must also be counted. There is no NAT/LB or paid-model
 usage. Refresh regional EC2/EBS prices and existing account consumption before
 first execution; use a US$5 investigation threshold, not a spending guarantee.
+The 2026-10-31 regional API check priced t3.medium at US$0.0416/hour. A three-hour
+scenario is about US$0.60 for control plane, nodes, public IPv4 and 40 GiB gp3;
+allow US$2 total for registry, transfer and burst/buffer costs. Existing account
+services continue billing separately. A stuck environment or repeated runs can
+exceed this scenario; the two-hour expiry tag does not stop billing by itself.
 
 Sources: [EKS pricing](https://aws.amazon.com/eks/pricing/),
 [public IPv4 pricing](https://aws.amazon.com/vpc/pricing/),

@@ -2,6 +2,9 @@
 from datetime import datetime, timedelta, timezone
 import os
 import unittest
+import tempfile
+from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import gate
@@ -103,10 +106,28 @@ class OwnershipTests(unittest.TestCase):
 
     def test_missing_stack_does_not_hide_orphan_cluster(self):
         with patch.object(lifecycle, 'stack', return_value=None), patch.object(lifecycle, 'aws', return_value={'cluster': {}}), \
-                patch.object(lifecycle, 'evidence') as evidence:
+                patch.object(lifecycle, 'delete_images'), patch.object(lifecycle, 'evidence') as evidence:
             with self.assertRaisesRegex(RuntimeError, 'still exists'):
-                lifecycle.cleanup(completed_run='42')
+                lifecycle.cleanup(completed_run='42', completed_attempt='1')
             evidence.assert_not_called()
+
+    def test_recovery_deletes_exact_images_after_stack_already_deleted(self):
+        with patch.object(lifecycle, 'stack', return_value=None), \
+                patch.object(lifecycle, 'aws', side_effect=lifecycle.AwsError('ResourceNotFoundException')), \
+                patch.object(lifecycle, 'delete_images') as images, patch.object(lifecycle, 'evidence'):
+            lifecycle.cleanup(completed_run='42', completed_attempt='2')
+            images.assert_called_once_with('42-2')
+
+    def test_old_completion_does_not_destroy_new_attempt(self):
+        with patch.object(lifecycle, 'stack', return_value=owned('42-2')), \
+                patch.object(lifecycle, 'aws') as aws, patch.object(lifecycle, 'delete_images') as images:
+            lifecycle.cleanup(completed_run='42', completed_attempt='1')
+            aws.assert_not_called()
+            images.assert_called_once_with('42-1')
+
+    def test_recovery_requires_attempt(self):
+        with patch.object(lifecycle, 'stack', return_value=None), self.assertRaises(ValueError):
+            lifecycle.cleanup(completed_run='42')
 
     @patch.dict(os.environ, {'ALEX_CD_REPOSITORY': 'registry/alex-cd-api'})
     def test_delete_only_exact_tags_and_propagate_ecr_failure(self):
@@ -131,6 +152,22 @@ class WindowTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 check_window(expiry.isoformat(), NOW)
         self.assertEqual(check_window((NOW + timedelta(hours=3)).isoformat(), NOW), NOW + timedelta(hours=3))
+
+
+class DiagnosticsTests(unittest.TestCase):
+    def test_kubernetes_reason_survives_without_publishing_secret_output(self):
+        import cloud_acceptance
+        failure = SimpleNamespace(returncode=1, stdout='private-manifest',
+                                  stderr='Error from server (Forbidden): secret-value')
+        with tempfile.TemporaryDirectory() as directory, \
+                patch.object(cloud_acceptance, 'STATE', Path(directory)), \
+                patch.object(cloud_acceptance.subprocess, 'run', return_value=failure), \
+                patch.object(cloud_acceptance, 'evidence') as evidence:
+            with self.assertRaisesRegex(RuntimeError, 'Forbidden'):
+                cloud_acceptance.kube('apply', '-f', '-', data='private-manifest')
+            self.assertIn('secret-value', (Path(directory) / 'kubectl-private.log').read_text())
+            self.assertEqual(evidence.call_args.args[1]['reason'], 'Forbidden')
+            self.assertNotIn('secret-value', str(evidence.call_args))
 
 
 if __name__ == '__main__':

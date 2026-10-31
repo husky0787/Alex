@@ -100,11 +100,33 @@ Resources:
       AmiType: AL2023_x86_64_STANDARD
       CapacityType: ON_DEMAND
       InstanceTypes: [t3.medium]
-      DiskSize: 20
+      LaunchTemplate:
+        Id: !Ref WorkerTemplate
+        Version: !GetAtt WorkerTemplate.LatestVersionNumber
       ScalingConfig:
         MinSize: 2
         MaxSize: 2
         DesiredSize: 2
+  WorkerTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      TagSpecifications:
+        - ResourceType: launch-template
+          Tags:
+            - {Key: Project, Value: alex}
+            - {Key: Purpose, Value: manual-eks-cd}
+      LaunchTemplateData:
+        MetadataOptions:
+          HttpTokens: required
+          HttpPutResponseHopLimit: 1
+          HttpEndpoint: enabled
+        BlockDeviceMappings:
+          - DeviceName: /dev/xvda
+            Ebs:
+              VolumeSize: 20
+              VolumeType: gp3
+              Encrypted: true
+              DeleteOnTermination: true
 Outputs:
   ClusterName:
     Value: !Ref Cluster

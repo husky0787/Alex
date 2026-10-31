@@ -127,13 +127,21 @@ def delete_images(release_id):
         raise RuntimeError('Release image cleanup failed: ' + json.dumps(failures))
 
 
-def cleanup(release_id=None, completed_run=None, expired=False):
+def cleanup(release_id=None, completed_run=None, completed_attempt=None, expired=False):
     value = stack()
     selected = release_id
+    if completed_run is not None:
+        if not re.fullmatch(r'[0-9]+', str(completed_run)) or not re.fullmatch(r'[0-9]+', str(completed_attempt)):
+            raise ValueError('Recovery requires the completed run ID and attempt')
+        selected = f'{completed_run}-{completed_attempt}'
     if value:
         tags = owner(value)
         if release_id and tags['ReleaseId'] != release_id:
             raise ValueError('Stack belongs to another release; refusing cleanup')
+        if completed_run and tags['ReleaseId'] != selected:
+            print('Stack belongs to a different run attempt; leaving it intact')
+            delete_images(selected)
+            return
         if not release_id and not recoverable(value, completed_run if not expired else None):
             print('No eligible interrupted/expired environment')
             return
@@ -169,6 +177,7 @@ def main():
     parser.add_argument('action', choices=['create', 'cleanup', 'recover'])
     parser.add_argument('--release-id')
     parser.add_argument('--completed-run')
+    parser.add_argument('--completed-attempt')
     args = parser.parse_args()
     if args.action == 'create':
         create(args.release_id)
@@ -177,7 +186,7 @@ def main():
             parser.error('cleanup requires exact release ownership')
         cleanup(release_id=args.release_id)
     else:
-        cleanup(completed_run=args.completed_run, expired=not args.completed_run)
+        cleanup(completed_run=args.completed_run, completed_attempt=args.completed_attempt, expired=not args.completed_run)
 
 
 if __name__ == '__main__':

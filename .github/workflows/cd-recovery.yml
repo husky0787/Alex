@@ -29,6 +29,7 @@ jobs:
       ALEX_CD_CF_ROLE_ARN: ${{ vars.ALEX_CD_CF_ROLE_ARN }}
       ALEX_CD_REPOSITORY: ${{ vars.ALEX_CD_REPOSITORY }}
       COMPLETED_RUN: ${{ github.event.workflow_run.id }}
+      COMPLETED_ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
     steps:
       # Always execute trusted main code, never the triggering run's branch/artifact.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,7 +51,7 @@ jobs:
         shell: bash
         run: |
           args=()
-          if [[ -n "$COMPLETED_RUN" ]]; then args+=(--completed-run "$COMPLETED_RUN"); fi
+          if [[ -n "$COMPLETED_RUN" ]]; then args+=(--completed-run "$COMPLETED_RUN" --completed-attempt "$COMPLETED_ATTEMPT"); fi
           uv run --no-project deploy/cd/lifecycle.py recover "${args[@]}"
       - name: Save cleanup evidence
         if: always()

@@ -73,7 +73,7 @@ jobs:
           merge-multiple: true
       - run: uv run --no-project deploy/cd/install_tools.py
       - name: Verify archive hashes and source labels before provisioning
-        run: uv run --no-project deploy/cd/acceptance.py --verify-only
+        run: uv run --no-project deploy/cd/cloud_acceptance.py --verify-only
       - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ vars.ALEX_CD_ROLE_ARN }}
@@ -84,7 +84,7 @@ jobs:
       - name: Create temporary EKS
         run: uv run --no-project deploy/cd/lifecycle.py create --release-id "$RELEASE_ID"
       - name: Release tested images and verify rollback
-        run: uv run --no-project deploy/cd/acceptance.py
+        run: uv run --no-project deploy/cd/cloud_acceptance.py
       - name: Save safe acceptance evidence
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
