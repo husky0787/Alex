@@ -209,6 +209,21 @@ class APIErrorContractTests(unittest.TestCase):
         self.assert_json_error(response, 500)
         self.assertNotIn("private database details", response.text)
 
+    def test_readiness_checks_database_but_liveness_survives_failure(self):
+        with Stubber(self.api.readiness_client) as readiness:
+            expected = {'resourceArn': self.api.db.client.cluster_arn,
+                        'secretArn': self.api.db.client.secret_arn, 'database':'alex', 'sql':'SELECT 1'}
+            readiness.add_response('execute_statement', {'records': [[{'longValue':1}]]}, expected)
+            self.assertEqual(self.client.get('/ready').status_code, 200)
+            readiness.add_client_error('execute_statement', service_error_code='DatabaseUnavailableException',
+                                       service_message='private details', expected_params=expected)
+            with self.assertLogs('main', level='WARNING') as logs:
+                self.assert_json_error(self.client.get('/ready'), 503)
+            self.assertIn('DatabaseUnavailableException', logs.output[0])
+            self.assertNotIn('private details', logs.output[0])
+            self.assertEqual(self.client.get('/health').status_code, 200)
+            readiness.assert_no_pending_responses()
+
 
 if __name__ == "__main__":
     unittest.main()
