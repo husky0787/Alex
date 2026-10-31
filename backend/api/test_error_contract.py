@@ -217,7 +217,10 @@ class APIErrorContractTests(unittest.TestCase):
             self.assertEqual(self.client.get('/ready').status_code, 200)
             readiness.add_client_error('execute_statement', service_error_code='DatabaseUnavailableException',
                                        service_message='private details', expected_params=expected)
-            self.assert_json_error(self.client.get('/ready'), 503)
+            with self.assertLogs('main', level='WARNING') as logs:
+                self.assert_json_error(self.client.get('/ready'), 503)
+            self.assertIn('DatabaseUnavailableException', logs.output[0])
+            self.assertNotIn('private details', logs.output[0])
             self.assertEqual(self.client.get('/health').status_code, 200)
             readiness.assert_no_pending_responses()
 

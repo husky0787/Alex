@@ -30,6 +30,13 @@ def wait(name):
     kube('rollout','status','deployment/'+name,'--timeout=180s')
 
 
+def require_owner():
+    marker=STATE/'owner.json'
+    assert marker.exists(), 'Missing cluster ownership marker'
+    owner=json.loads(marker.read_text())
+    assert owner['root']==str(ROOT) and owner['cluster']==CLUSTER, 'Cluster belongs to another checkout'
+
+
 def load_image(image):
     # Avoid k3d's additional tools image. Import only into our named node.
     with subprocess.Popen(['docker','image','save',image],stdout=subprocess.PIPE) as source:
@@ -50,12 +57,12 @@ def up(args):
     marker=STATE/'owner.json'
     clusters=json.loads(run([args.k3d,'cluster','list','-o','json'],capture_output=True).stdout)
     exists=any(c['name']==CLUSTER for c in clusters)
-    if exists and (not marker.exists() or json.loads(marker.read_text())['root'] != str(ROOT)):
-        raise RuntimeError('Cluster name already exists without this checkout ownership marker')
+    if exists:
+        require_owner()
     if not exists:
         run([args.k3d,'cluster','create',CLUSTER,'--image','rancher/k3s:v1.35.5-k3s1',
             '--no-lb','--no-image-volume','--servers-memory','4g','--api-port','127.0.0.1:16443',
-            '-p','127.0.0.1:18080:30080@server:0','--kubeconfig-update-default=false',
+            '-p','127.0.0.1:18080:30080@server:0:direct','--kubeconfig-update-default=false',
             '--kubeconfig-switch-context=false','--k3s-arg','--disable=traefik,metrics-server,local-storage@server:0',
             '--timeout','180s'])
         marker.write_text(json.dumps({'cluster':CLUSTER,'root':str(ROOT)}))
@@ -81,7 +88,7 @@ def up(args):
 
 
 def recovery(args):
-    assert (STATE/'owner.json').exists(), 'Missing cluster ownership marker'
+    require_owner()
     before=json.loads(kube('get','pods','-l','app=alex-api','-o','json',output=True))['items']
     victim=before[0]['metadata']['name']
     kube('delete','pod',victim,'--wait=true')
@@ -143,7 +150,7 @@ def main():
         recovery(args)
     else:
         marker=STATE/'owner.json'
-        assert marker.exists() and json.loads(marker.read_text())['root']==str(ROOT), 'Missing cluster ownership marker'
+        require_owner()
         run([args.k3d,'cluster','delete',CLUSTER])
         marker.unlink()
 

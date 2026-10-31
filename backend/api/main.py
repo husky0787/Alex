@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 import boto3
 from botocore.config import Config
+from botocore.exceptions import ClientError
 import psycopg
 from mangum import Mangum
 from dotenv import load_dotenv
@@ -211,8 +212,9 @@ def readiness_check():
     try:
         readiness_client.execute_statement(resourceArn=db.client.cluster_arn,
             secretArn=db.client.secret_arn, database=db.client.database, sql="SELECT 1")
-    except Exception:
-        logger.warning("API readiness: database unavailable")
+    except Exception as exc:
+        code = exc.response['Error']['Code'] if isinstance(exc, ClientError) else 'transport_or_configuration'
+        logger.warning("API readiness: database unavailable type=%s code=%s", type(exc).__name__, code)
         raise HTTPException(status_code=503, detail="Database unavailable") from None
     return {"status": "ready"}
 

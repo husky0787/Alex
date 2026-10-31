@@ -11,7 +11,7 @@ root with a unique source revision tag; preserve the resulting image ID with the
 test evidence. Do not reuse a tag for different source revisions.
 
 ```sh
-docker build -f backend/api/Dockerfile -t alex-api:<revision> backend
+docker build --platform linux/amd64 -f backend/api/Dockerfile -t alex-api:<revision> backend
 docker pull postgres:17.6
 docker pull rancher/k3s:v1.35.5-k3s1
 uv run --no-project deploy/local/run.py up --image alex-api:<revision>
