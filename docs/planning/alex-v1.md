@@ -24,7 +24,7 @@ PR #20 已合併為 `52395b5208c0bd04d2bb992de314273750b48762`。任務 7 的 [P
 
 換機時 clone／更新本儲存庫，安裝 Git、GitHub CLI、Python 3.12、uv、Node.js 與 PostgreSQL 工具，依 [行情模組 README](../../backend/market_data/README.md) 安裝相依套件、設定 `PG_BIN`、遷移及執行測試。文件中的 `D:/learn/...` 工具路徑只適用原電腦，請使用新電腦的安裝位置。完整應用另外需要既有 Clerk／AWS 設定。
 
-任務 8 新增共用的每日／手動 ETL 入口、批次鎖、完成時的執行快照、缺漏監控和告警事件，以及 `/api/market-data/status`。59 項後端、13 項 API 測試通過；實際 CronJob／手動 Job 競爭、品質失敗、漏資料回補及授權 API 均已驗收。見 [任務 8 證據](../verification/task-08-scheduled-etl.md) 與 [重現／操作步驟](../../deploy/etl/README.md)。行情為隔離的合成資料；下一階段才驗證 EKS、AWS 身分及實際告警送達。
+任務 8 的 [PR #22](https://github.com/husky0787/Alex/pull/22) 新增共用的每日／手動 ETL 入口、批次鎖、完成時的執行快照、缺漏監控和告警事件，以及 `/api/market-data/status`。59 項後端、13 項 API 測試通過；實際 CronJob／手動 Job 競爭、品質失敗、漏資料回補及授權 API 均已驗收。見 [任務 8 證據](../verification/task-08-scheduled-etl.md) 與 [重現／操作步驟](../../deploy/etl/README.md)。行情為隔離的合成資料；下一階段才驗證 EKS、AWS 身分及實際告警送達。
 
 `.env`、AWS 登入資料與 `.local/` 私人行情不在版本庫；需要時安全移轉或重新設定。自訂 Codex skills 也須另行安裝。`.planning/` 僅保留本機執行過程，接續開發以本文件、GitHub Issues、ADR 和已提交的驗證文件為準。
 
