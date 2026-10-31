@@ -24,7 +24,9 @@ PR #20 已合併為 `52395b5208c0bd04d2bb992de314273750b48762`。任務 7 的 [P
 
 換機時 clone／更新本儲存庫，安裝 Git、GitHub CLI、Python 3.12、uv、Node.js 與 PostgreSQL 工具，依 [行情模組 README](../../backend/market_data/README.md) 安裝相依套件、設定 `PG_BIN`、遷移及執行測試。文件中的 `D:/learn/...` 工具路徑只適用原電腦，請使用新電腦的安裝位置。完整應用另外需要既有 Clerk／AWS 設定。
 
-任務 8 的 [PR #22](https://github.com/husky0787/Alex/pull/22) 新增共用的每日／手動 ETL 入口、批次鎖、完成時的執行快照、缺漏監控和告警事件，以及 `/api/market-data/status`。59 項後端、13 項 API 測試通過；實際 CronJob／手動 Job 競爭、品質失敗、漏資料回補及授權 API 均已驗收。見 [任務 8 證據](../verification/task-08-scheduled-etl.md) 與 [重現／操作步驟](../../deploy/etl/README.md)。行情為隔離的合成資料；下一階段才驗證 EKS、AWS 身分及實際告警送達。
+任務 8 的 [PR #22](https://github.com/husky0787/Alex/pull/22) 已合併為 `4e9343b`，新增共用的每日／手動 ETL 入口、批次鎖、完成時的執行快照、缺漏監控和告警事件，以及 `/api/market-data/status`。59 項後端、13 項 API 測試通過；實際 CronJob／手動 Job 競爭、品質失敗、漏資料回補及授權 API 均已驗收。見 [任務 8 證據](../verification/task-08-scheduled-etl.md) 與 [重現／操作步驟](../../deploy/etl/README.md)。該次行情為隔離的合成資料。
+
+任務 9 在 `feat/task-09-bounded-eks` 完成真實 EKS 驗收：20 個標的、1,280 筆可信行情、每日／手動 ETL、AWS 權限隔離、HTTPS 授權、SQS 報告、HPA、故障恢復、回滾及告警送達。清理進行中；見 [任務 9 證據與限制](../verification/task-09-eks-acceptance.md)、[成本窗口](../verification/task-09-cloud-window.md) 和 [重建／清理步驟](../../deploy/eks/README.md)。測試使用獨立 JWT signer 與 Reporter 的研究不可用路徑，不能當成完整 Clerk 登入或五 agent 研究鏈驗收。
 
 `.env`、AWS 登入資料與 `.local/` 私人行情不在版本庫；需要時安全移轉或重新設定。自訂 Codex skills 也須另行安裝。`.planning/` 僅保留本機執行過程，接續開發以本文件、GitHub Issues、ADR 和已提交的驗證文件為準。
 
@@ -48,9 +50,9 @@ PR #20 已合併為 `52395b5208c0bd04d2bb992de314273750b48762`。任務 7 的 [P
 - 本機 Kubernetes 先驗證部署與排程，再於短期 EKS 環境驗證 AWS 權限、Ingress、告警及回滾。
 - 第一版不包含即時串流、全市場覆蓋、交易執行或全天候 EKS 展示服務。
 
-## 預算策略（建議，尚未建立資源）
+## 預算策略與實際驗收窗口
 
-先以剩餘 US$100 credit 內完成作為保守規劃；額外現金支出未獲授權。
+先以 US$100 credit 內完成作為保守規劃；額外現金支出未獲授權。2026-10-31 任務 9 部署前核對剩餘 credit US$111.67、本月累計費用 US$5.37，採包含既有用量及緩衝的 US$20 情境估算與最多 8 小時窗口；這些數字不是任務 9 的已結算費用。
 所有既有 AWS 服務的持續費用也要計入，不能把 US$100 全部分配給 EKS。
 
 AWS 官方 EKS 標準支援價格為每叢集每小時 US$0.10：
@@ -77,7 +79,7 @@ AWS 官方 EKS 標準支援價格為每叢集每小時 US$0.10：
 
 ## 執行時需核對
 
-- 任務 6 接續核對實際帳單；任務 7 已合併。任務 8（issue #10）已驗收，待合併；下一項為任務 9（issue #11）的限時 EKS 驗收，開始前核對依賴及更新 credit／完整成本估算。
+- 任務 6 仍待實際帳單核對；任務 7／8 已合併。任務 9（issue #11）雲端測試完成，待清理與合併；下一項是 [任務 10／issue #12](https://github.com/husky0787/Alex/issues/12) 的 CI/CD。依賴 #11 關閉後才開始；重新建立付費環境前仍須更新信用額度和完整估算。
 - 核對可用的行情供應商方案與帳號能力，再確定排程和回補方式。
 - 實作規格中已確認的缺漏、過期及研究不可用行為，留下驗證證據。
 

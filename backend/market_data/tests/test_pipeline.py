@@ -87,6 +87,34 @@ class PipelineTests(unittest.TestCase):
         self.assertEqual(run["error_code"], "no_bars")
         self.assertIsNone(self.repository.latest("AAPL", as_of=self.now)["price"])
 
+    def test_quality_rejection_has_separate_immutable_quarantine_manifest(self):
+        payload = {**self.payload, 'results': [{**self.payload['results'][0], 'c': -1}]}
+        pipeline, body = self.pipeline(payload)
+        run = pipeline.run('AAPL', date(2026,10,23), date(2026,10,23))
+        paths = list(Path(self.directory.name).glob('quarantine/massive/AAPL/*/*.json'))
+        self.assertEqual(len(paths), 1)
+        manifest = json.loads(paths[0].read_text())
+        self.assertEqual(manifest['run_id'], run['id'])
+        self.assertEqual(manifest['raw_sha256'], run['raw_sha256'])
+        self.assertEqual(self.raw.read(manifest['raw_key']), body)
+        self.assertEqual(manifest['rejected'][0]['row_index'], 0)
+
+    def test_quarantine_storage_failure_never_publishes_partial_success(self):
+        from unittest.mock import patch
+        payload = {**self.payload, 'results': [self.payload['results'][0], {**self.payload['results'][0], 'c': -1}]}
+        pipeline, _ = self.pipeline(payload)
+        original = self.raw.save
+        def failing_save(key, body):
+            if key.startswith('quarantine/'):
+                raise OSError('test disk failure')
+            return original(key, body)
+        with patch.object(self.raw, 'save', side_effect=failing_save):
+            run = pipeline.run('AAPL', date(2026,10,23), date(2026,10,23))
+        self.assertEqual(run['status'], 'failed')
+        self.assertEqual(run['error_code'], 'quarantine_storage_failed')
+        self.assertEqual(run['accepted_count'], 0)
+        self.assertIsNone(self.repository.latest('AAPL', as_of=self.now)['price'])
+
     def test_provider_failures_leave_sanitized_run_records(self):
         for status in [401, 403, 429, 500]:
             with self.subTest(status=status):
