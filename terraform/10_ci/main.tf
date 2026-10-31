@@ -47,7 +47,7 @@ resource "aws_iam_role" "release" {
     Principal = { Federated = local.provider_arn }, Action = "sts:AssumeRoleWithWebIdentity",
     Condition = { StringEquals = {
       "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com",
-      "token.actions.githubusercontent.com:sub" = "repo:husky0787/Alex:environment:alex-acceptance"
+      "token.actions.githubusercontent.com:sub" = "repo:husky0787@180300086/Alex@1355610076:environment:alex-acceptance"
     } }
   }] })
   tags = local.tags

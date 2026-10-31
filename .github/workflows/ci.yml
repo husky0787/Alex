@@ -2,7 +2,9 @@ name: Alex CI and controlled release
 
 on:
   push:
+    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -98,18 +100,19 @@ jobs:
           include-hidden-files: true
           retention-days: 14
       - name: Retain only verified container archives and their manifest
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.sha == vars.ALEX_RELEASE_COMMIT
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: tested-images
           path: .local/ci/artifacts/
           include-hidden-files: true
           retention-days: 3
-          compression-level: 0
+          compression-level: 6
 
   release:
-    # An operator explicitly allowlists ONE full commit before pushing/rerunning.
+    # An operator explicitly allowlists ONE full main commit before dispatching.
     # PRs (including forks) never enter this job or receive an OIDC token.
-    if: github.event_name == 'push' && github.sha == vars.ALEX_RELEASE_COMMIT
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && github.sha == vars.ALEX_RELEASE_COMMIT
     needs: [backend, frontend, image-and-rollout]
     runs-on: ubuntu-24.04
     timeout-minutes: 25

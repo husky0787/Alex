@@ -3,7 +3,7 @@ mock_provider "aws" {}
 run "release_identity_is_environment_scoped" {
   command = apply
   assert {
-    condition     = jsondecode(aws_iam_role.release.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:husky0787/Alex:environment:alex-acceptance"
+    condition     = jsondecode(aws_iam_role.release.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"] == "repo:husky0787@180300086/Alex@1355610076:environment:alex-acceptance"
     error_message = "OIDC must be scoped to the exact repository environment."
   }
   assert {
