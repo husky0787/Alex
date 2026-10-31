@@ -28,7 +28,9 @@ At12:31:12–12:31:15 UTC real Dashboard profile, accounts, positions and job re
 
 ## Reproduction and evidence collection
 
-Use the [showcase runbook](../../deploy/showcase/README.md). New offline tests cover runtime hash/source integrity, required persisted outputs, failed application results despite transport success, malformed work IDs and cleanup ownership/resumption. Terraform mock tests verify dedicated worker permissions, queue bounds and invalid inputs. Test totals and cleanup completion are recorded below after final checks.
+Use the [showcase runbook](../../deploy/showcase/README.md). Final local checks passed: **12 showcase helper tests, 3 standalone Terraform mock tests, 14 API contract tests and 13 frontend tests**, plus lint/type checks. Helper tests cover runtime hash/source integrity, required persisted outputs, failure-reason preservation, malformed work IDs and cleanup ownership/resumption. Terraform tests use committed empty ZIP fixtures and fake inputs, without private variables or AWS resources.
+
+The two-axis review found one Standards issue (overwriting original failure reasons) and two Spec issues (dotenv isolation and nonportable Terraform tests). All were fixed and independently re-reviewed with zero remaining findings. API/database loaders now explicitly honor the no-dotenv flag, the launcher checks all effective isolation settings, and a fresh-process import test verifies the behavior. These final safety refinements passed offline regressions after the live analysis; they are not claimed as another cloud/model run.
 
 Private storage retains original market responses, a market database dump, application table exports, deployment hashes, API route/status timestamps and seven named CloudWatch log groups (**1,592 events**, archived through12:33:27 UTC). Model usage is recorded as account/model-window observations; it may include concurrent work and is not a task invoice. The first archive attempt failed with AWS CLI exit255; rerunning with explicit UTF-8 succeeded. No destructive cleanup ran before a matching archive receipt existed.
 
@@ -36,7 +38,9 @@ For quarantine, missing-day backfill, repeat safety, notifications and rollback,
 
 ## Cleanup, cost and retention
 
-Cleanup is in progress. Do not read this section as a claim that resources have been removed until the final audit is recorded here.
+Reviewed destroy plans matched the original creation addresses and current state identities: **23 worker +20 ingestion +6 embedding resources**, all removed. The independent audit at **12:49:32 UTC /20:49:32 Asia/Taipei** verified all three Terraform states empty, no task workers/queues/vector bucket/embedding endpoint, and no owned worker/SageMaker log groups. The automatically created SageMaker log group was deleted only after its exact name, creation timestamp and private archive were checked.
+
+The dedicated `alex_task11` database/login were removed after archiving; the original `alex` database remains. All six original Lambda code hashes and modification timestamps match the baseline. The dedicated secret is scheduled for deletion with a **seven-day recovery window**, not forcibly purged. The owned local PostgreSQL, API and Next.js processes have been stopped; the user's normal Brave session was left alone. The demo URLs are no longer serving this acceptance environment. See [machine-readable cleanup summary](task-11-cleanup-summary.json).
 
 The approved incremental planning allowance wasUS$5 with a four-hour window, not a service-enforced cap or a measured charge. Final billing remains unreconciled; account-level totals and credit balances are intentionally not reproduced here. Shared-service attribution and reporting lag limit exact task costing.
 

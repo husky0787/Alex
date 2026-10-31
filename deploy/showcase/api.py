@@ -25,7 +25,7 @@ def application():
     ledger = load('database-ledger-private.json')
     if ledger['stage'] != 'initialized' or target['secret'] != ledger['secret_arn']:
         raise RuntimeError('Application database ownership is not initialized')
-    os.environ.update(
+    configuration = dict(
         PYTHON_DOTENV_DISABLED='1',
         AURORA_CLUSTER_ARN=target['cluster'], AURORA_SECRET_ARN=target['secret'],
         AURORA_DATABASE='alex_task11', DEFAULT_AWS_REGION='us-east-1',
@@ -34,11 +34,16 @@ def application():
         CLERK_JWKS_URL=load('public-config.json')['clerk_jwks_url'],
         CORS_ORIGINS='http://localhost:3000,http://127.0.0.1:3000',
     )
+    os.environ.update(configuration)
     sys.path.insert(0, str(ROOT / 'backend/api'))
     import main
     app = main.app
-    if main.db.client.database != 'alex_task11' or main.db.client.secret_arn != target['secret']:
-        raise RuntimeError('Application configuration escaped the isolated database')
+    if (any(os.environ.get(key) != value for key, value in configuration.items())
+            or main.db.client.database != 'alex_task11' or main.db.client.secret_arn != target['secret']
+            or main.db.client.cluster_arn != target['cluster']
+            or main.SQS_QUEUE_URL != configuration['SQS_QUEUE_URL']
+            or main.clerk_config.jwks_url != configuration['CLERK_JWKS_URL']):
+        raise RuntimeError('Application configuration escaped the isolated environment')
 
     @app.middleware('http')
     async def record_request(request, call_next):

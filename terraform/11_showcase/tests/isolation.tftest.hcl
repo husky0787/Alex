@@ -1,3 +1,13 @@
+variables {
+  cluster_arn            = "arn:aws:rds:us-east-1:123456789012:cluster:test-only"
+  database_secret_arn    = "arn:aws:secretsmanager:us-east-1:123456789012:secret:alex-task11/database-test"
+  vector_bucket         = "test-only"
+  vector_index_arn       = "arn:aws:s3vectors:us-east-1:123456789012:bucket/test-only/index/financial-research"
+  sagemaker_endpoint_arn = "arn:aws:sagemaker:us-east-1:123456789012:endpoint/test-only"
+  bedrock_model_arns     = ["arn:aws:bedrock:us-east-1:123456789012:inference-profile/us.amazon.nova-pro-v1:0", "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0"]
+  worker_directory      = "tests/fixtures"
+}
+
 mock_provider "aws" {
   mock_data "aws_caller_identity" {
     defaults = { account_id = "123456789012" }

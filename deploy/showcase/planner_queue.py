@@ -31,12 +31,24 @@ def lambda_handler(event, context):
             result = planner({'job_id': job_id}, context)
             body = json.loads(result['body']) if isinstance(result.get('body'), str) else result.get('body', {})
             if result.get('statusCode') != 200 or not body.get('success'):
-                raise RuntimeError('Planner returned a failed application result')
+                raise RuntimeError(str(body.get('error') or 'Planner returned a failed application result'))
             check_outputs(Database(), job_id)
         except Exception as exc:
-            if job_id:
-                Database().jobs.update_status(job_id, 'failed', error_message='showcase_analysis_failed')
             print(json.dumps({'event': 'showcase_analysis_failed', 'error_type': type(exc).__name__,
+                              'error_message': str(exc),
                               'message_id': record['messageId']}))
+            if job_id:
+                database = Database()
+                try:
+                    job = database.jobs.find_by_id(job_id)
+                    # Planner already persists its original exception. Do not
+                    # replace that evidence with the adapter's generic result.
+                    if not job or job.get('status') != 'failed' or not job.get('error_message'):
+                        database.jobs.update_status(job_id, 'failed', error_message=str(exc))
+                except Exception as persistence_error:
+                    print(json.dumps({'event': 'showcase_failure_persistence_failed',
+                                      'error_type': type(persistence_error).__name__,
+                                      'error_message': str(persistence_error),
+                                      'message_id': record['messageId']}))
             failures.append({'itemIdentifier': record['messageId']})
     return {'batchItemFailures': failures}

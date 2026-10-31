@@ -37,7 +37,7 @@ class QueueCompletion(unittest.TestCase):
                 database.jobs.find_by_id.return_value[field] = None
                 result = queue.lambda_handler({'Records': [self.record]}, None)
                 self.assertEqual(result, {'batchItemFailures': [{'itemIdentifier': 'message-1'}]})
-                database.jobs.update_status.assert_called_with(self.job, 'failed', error_message='showcase_analysis_failed')
+                database.jobs.update_status.assert_called_with(self.job, 'failed', error_message='Planner did not persist every required output')
                 database.jobs.find_by_id.return_value = healthy
 
     def test_successful_output_is_acknowledged(self):
@@ -53,6 +53,26 @@ class QueueCompletion(unittest.TestCase):
         self.assertEqual(result, {'batchItemFailures': [{'itemIdentifier': 'bad'}]})
         worker.assert_not_called()
         database.jobs.update_status.assert_not_called()
+
+    def test_original_planner_failure_reason_is_preserved(self):
+        worker.return_value = {'statusCode': 500, 'body': json.dumps({'success': False, 'error': 'model denied'})}
+        database.jobs.find_by_id.return_value = {'status': 'failed', 'error_message': 'original model permission error'}
+        self.assertTrue(queue.lambda_handler({'Records': [self.record]}, None)['batchItemFailures'])
+        database.jobs.update_status.assert_not_called()
+
+    def test_failure_to_persist_does_not_hide_the_original_diagnostic_or_acknowledge_work(self):
+        worker.side_effect = RuntimeError('original diagnostic')
+        database.jobs.update_status.side_effect = RuntimeError('database unavailable')
+        try:
+            with patch('builtins.print') as logged:
+                result = queue.lambda_handler({'Records': [self.record]}, None)
+            self.assertEqual(result, {'batchItemFailures': [{'itemIdentifier': 'message-1'}]})
+            events = [json.loads(call.args[0])['event'] for call in logged.call_args_list]
+            self.assertEqual(events, ['showcase_analysis_failed', 'showcase_failure_persistence_failed'])
+            self.assertEqual(json.loads(logged.call_args_list[0].args[0])['error_message'], 'original diagnostic')
+        finally:
+            worker.side_effect = None
+            database.jobs.update_status.side_effect = None
 
 
 if __name__ == '__main__':
