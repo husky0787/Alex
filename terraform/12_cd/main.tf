@@ -104,6 +104,22 @@ resource "aws_iam_role_policy" "cloudformation" {
     Condition = { StringEquals = { "iam:PassedToService" = ["eks.amazonaws.com", "ec2.amazonaws.com"] } } },
     { Effect = "Allow", Action = ["iam:GetRole"], Resource = [aws_iam_role.cluster.arn, aws_iam_role.node.arn] },
     { Effect = "Allow", Action = ["iam:ListAttachedRolePolicies"], Resource = [aws_iam_role.node.arn, aws_iam_role.cluster.arn] },
+    # EKS validates the caller's EC2 launch permissions even for managed nodes.
+    # Every RunInstances request also authorizes its template and subnet below.
+    { Sid      = "LaunchOwnedTemplate", Effect = "Allow", Action = ["ec2:RunInstances"],
+      Resource = ["arn:aws:ec2:us-east-1:${local.account}:launch-template/*", "arn:aws:ec2:us-east-1:${local.account}:subnet/*"],
+    Condition = { StringEquals = { "aws:ResourceTag/Purpose" = "manual-eks-cd" } } },
+    { Sid      = "LaunchBoundedWorker", Effect = "Allow", Action = ["ec2:RunInstances"],
+      Resource = "arn:aws:ec2:us-east-1:${local.account}:instance/*",
+      Condition = {
+        ArnLike       = { "ec2:LaunchTemplate" = "arn:aws:ec2:us-east-1:${local.account}:launch-template/*" }
+        StringEquals  = { "ec2:InstanceType" = "t3.medium", "ec2:MetadataHttpTokens" = "required", "ec2:InstanceMarketType" = "on-demand" }
+        NumericEquals = { "ec2:MetadataHttpPutResponseHopLimit" = "1" }
+    } },
+    { Sid = "LaunchWorkerDependencies", Effect = "Allow", Action = ["ec2:RunInstances"],
+      Resource = ["arn:aws:ec2:us-east-1::image/ami-*", "arn:aws:ec2:us-east-1:${local.account}:security-group/*",
+      "arn:aws:ec2:us-east-1:${local.account}:network-interface/*", "arn:aws:ec2:us-east-1:${local.account}:volume/*"],
+    Condition = { ArnLike = { "ec2:LaunchTemplate" = "arn:aws:ec2:us-east-1:${local.account}:launch-template/*" } } },
     { Effect = "Allow", Action = ["ec2:DescribeVpcs", "ec2:DescribeSubnets", "ec2:DescribeRouteTables",
       "ec2:DescribeInternetGateways", "ec2:DescribeAvailabilityZones", "ec2:DescribeVpcAttribute",
     "ec2:DescribeSecurityGroups", "ec2:DescribeNetworkInterfaces", "ec2:DescribeLaunchTemplates", "ec2:DescribeLaunchTemplateVersions"], Resource = "*" },
