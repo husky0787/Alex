@@ -1,15 +1,20 @@
-# Manual EKS CD implementation verification
+# Manual EKS CD acceptance
 
-Date: 2026-10-31. Implementation: PRs #27, #28 and #29. Accepted source under test:
+Updated: 2026-11-01. Implementation: PRs #27 through #31. Application/workflow source under test:
 `508920bc9021f58234f05c90cd6b503a8b580c96`.
+
+**Passed:** [release attempt 3](https://github.com/husky0787/Alex/actions/runs/41212113839/attempts/3)
+completed gate, deploy and cleanup successfully. The [durable evidence summary](manual-eks-cd-summary.json)
+records release/rollback results and the independent cleanup audit.
 
 ## Verified locally
 
-- 21 CD boundary tests: exact successful-main provenance, skipped required jobs,
+- 23 CD boundary tests: exact successful-main provenance, skipped required jobs,
   expired/missing/ambiguous artifacts, foreign ownership, failed deletion, partial
   creation, orphan cluster detection, exact run-attempt recovery after stack
   deletion, current budget window, safe Kubernetes error diagnostics and denied/
-  incomplete role-inspection permissions before provisioning.
+  incomplete role-inspection permissions, including the existing nodegroup
+  service-linked role, before provisioning.
 - 10 existing release/rollback tests remain passing.
 - Terraform validate and one mocked apply test with IAM/ECR boundary assertions
   pass. Mocked apply does not create cloud infrastructure.
@@ -41,7 +46,8 @@ The standard node CNI policy has broader ENI permissions than the original propo
 implied. The spec/runbook now disclose that exception. IMDSv2 hop limit 1 and an
 application-Pod token-denial probe reduce node-credential exposure. This is not a
 claim of VPC-scoped CNI authorization. Unnecessary launch-template instance/volume
-tags were removed to avoid expanding the CloudFormation role's RunInstances rights.
+tags were removed. Live EKS subsequently required scoped RunInstances authorization
+even without those instance/volume tags; PR #30 adds the permissions described below.
 
 ## Live provisioning failures and fixes
 
@@ -65,7 +71,44 @@ IAM role-inspection preflight passed. Worker creation then failed authorization 
 launch instances with the launch template. No workers were created. Automatic
 cleanup passed at 2026-10-31 15:08:28 UTC, reporting the stack and EKS cluster absent
 and release tags removed. This is failure/cleanup evidence, not a successful CD
-acceptance. The EC2 authorization failure remains under investigation.
+acceptance. The following changes resolved that authorization failure.
+
+STS decoding identified RunInstances on instance/* as the actual denied action.
+PR #30 added scoped template/subnet ownership checks, t3.medium On-Demand,
+IMDSv2 required/hop1 and regional launch dependencies. The original policy failed
+IAM simulation; the corrected policy passed [13 positive/negative cases](manual-eks-cd-policy.json).
+This follows [AWS's launch-template authorization examples](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ExamplePolicies_EC2.html#iam-example-runinstances-launch-templates).
+
+Attempt 2 passed launch authorization but failed GetRole on the existing
+AWSServiceRoleForAmazonEKSNodegroup. It also automatically cleaned up without
+creating workers. PR #31 adds read access to that exact role and an early check;
+denied/missing-result tests and live IAM preflight passed.
+
+Attempt 3 passed real EKS release and rollback with the same tested application/
+workflow revision and the reviewed IAM fixes from main `9621c25`. The new
+service-role preflight was verified locally; the retried workflow ran the earlier
+`508920b` helper. Candidate rollout succeeded at 2026-11-01 02:23:10 UTC; the missing
+digest fault drill restored the exact candidate at 02:24:20 UTC. Authenticated
+smoke passed after baseline, candidate and recovery; the fixture schema remained
+unchanged and the application Pod could not obtain a node metadata token.
+
+Automatic cleanup passed at 02:36:30 UTC. Independent AWS checks at 02:39:29 UTC
+confirmed stack/cluster absence, both workers terminated, their two EBS volumes
+absent, VPC/subnets/ENIs/gateway and launch template absent, and an empty release
+ECR repository. The completion recovery workflow also passed in
+[run 41265914334](https://github.com/husky0787/Alex/actions/runs/41265914334).
+
+The original six Lambda code hashes, CloudFront configuration and original EC2
+states match the earlier inventory. Original Aurora identity is preserved, but
+its status changed from available to stopped: CloudTrail records a separate root
+console StopDBCluster at 2026-10-31 15:07:02 UTC, before today's acceptance. It was
+left stopped; this is explicitly not a claim that every original resource status
+was unchanged.
+
+The release window variable was removed. Dedicated IAM bootstrap and an empty ECR
+repository remain reusable; recovery stays enabled. The US$2 scenario/US$5 review
+threshold are estimates, not settled charges or hard spending limits. Final
+billing reconciliation remains separate.
 
 This extension uses real EKS with isolated fixtures. Task 9 Aurora/ETL and Task 11
 Clerk/agent integration evidence remain separate; there is no production cutover.

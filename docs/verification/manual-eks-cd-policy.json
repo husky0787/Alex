@@ -1,0 +1,54 @@
+[
+  {
+    "case": "bounded worker",
+    "decision": "allowed"
+  },
+  {
+    "case": "ec2:InstanceType",
+    "decision": "implicitDeny"
+  },
+  {
+    "case": "ec2:MetadataHttpTokens",
+    "decision": "implicitDeny"
+  },
+  {
+    "case": "ec2:MetadataHttpPutResponseHopLimit",
+    "decision": "implicitDeny"
+  },
+  {
+    "case": "missing template",
+    "decision": "implicitDeny"
+  },
+  {
+    "case": "launch-template manual-eks-cd",
+    "decision": "allowed"
+  },
+  {
+    "case": "launch-template foreign",
+    "decision": "implicitDeny"
+  },
+  {
+    "case": "subnet manual-eks-cd",
+    "decision": "allowed"
+  },
+  {
+    "case": "subnet foreign",
+    "decision": "implicitDeny"
+  },
+  {
+    "case": "dependency image/ami-test",
+    "decision": "allowed"
+  },
+  {
+    "case": "dependency security-group/*",
+    "decision": "allowed"
+  },
+  {
+    "case": "dependency network-interface/*",
+    "decision": "allowed"
+  },
+  {
+    "case": "dependency volume/*",
+    "decision": "allowed"
+  }
+]
