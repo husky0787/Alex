@@ -6,7 +6,7 @@ Alex 以課程中的投資組合分析應用為基礎，延伸出可驗證的每
 
 **部署狀態（2026-11-01）：**AWS 專案資源已移除，包括原應用與 CI/CD 的 IAM、OIDC、ECR 基礎設定。目前沒有運行中的 AWS 展示站。GitHub CI 仍啟用，雲端發布及復原工作已停用。程式碼與歷史驗收證據保留，詳見[清理紀錄與重建前提](docs/verification/aws-account-cleanup.zh-TW.md)。
 
-**閱讀入口：**[專案展示與個人貢獻](docs/showcase/README.zh-TW.md) · [包含資料工程與 Kubernetes 的完整架構](docs/showcase/architecture.zh-TW.md) · [45 秒證據導覽](docs/showcase/walkthrough.mp4) · [重現與清理流程](deploy/showcase/README.zh-TW.md) · [真實登入驗收紀錄（英文）](docs/verification/task-11-showcase.md)。
+**閱讀入口：**[包含資料工程與 Kubernetes 的完整架構](docs/showcase/architecture.zh-TW.md) · [45 秒證據導覽](docs/showcase/walkthrough.mp4) · [重現與清理流程](deploy/showcase/README.zh-TW.md) · [真實登入驗收紀錄（英文）](docs/verification/task-11-showcase.md)。
 
 基礎來自 Ed Donner 的 *AI in Production* 課程。文件分別說明課程功能與個人新增內容、真實測試與故障注入資料，以及歷史驗收與目前部署狀態。驗收環境採臨時建立方式，專案不提供永久在線的公開展示站。
 

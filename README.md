@@ -10,7 +10,7 @@ no live AWS demo. GitHub CI remains enabled; AWS release and recovery workflows
 are disabled. The source and historical acceptance evidence remain available.
 See the [cleanup record and rebuild prerequisites](docs/verification/aws-account-cleanup.md).
 
-**Start here:** [project showcase and contribution boundaries](docs/showcase/README.md) · [full architecture, including data engineering and Kubernetes](docs/showcase/architecture.md) · [45-second evidence walkthrough](docs/showcase/walkthrough.mp4) · [reproduce and clean up](deploy/showcase/README.md) · [real authenticated acceptance](docs/verification/task-11-showcase.md).
+**Start here:** [full architecture, including data engineering and Kubernetes](docs/showcase/architecture.md) · [45-second evidence walkthrough](docs/showcase/walkthrough.mp4) · [reproduce and clean up](deploy/showcase/README.md) · [real authenticated acceptance](docs/verification/task-11-showcase.md).
 
 The foundation is Ed Donner's *AI in Production* course. The linked evidence separates course features from personal additions, real tests from injected fixtures, and historical acceptance from currently deployed services. The acceptance environments are temporary; this repository does not promise an always-on public demo.
 
