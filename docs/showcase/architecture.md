@@ -1,6 +1,12 @@
 # Platform architecture and deployment boundaries
 
+English | [繁體中文](architecture.zh-TW.md)
+
 This is a code-backed component map. It combines capabilities verified in separate acceptance windows; it does not claim every box is currently deployed together. API and ETL are the Kubernetes workloads. The agents remain Lambda workloads.
+
+**Deployment status — 2026-11-01:** the AWS components and deployment bootstrap
+have been removed. This diagram describes the implementation and previously
+verified flows, not running infrastructure. See the [cleanup record](../verification/aws-account-cleanup.md).
 
 ```mermaid
 flowchart TB
@@ -58,12 +64,12 @@ Reporter uses SageMaker for query embedding as well as vector retrieval.
 
 | Environment | Runtime and storage | Observed status |
 | --- | --- | --- |
-| Original course deployment | CloudFront/S3 frontend, API Gateway/Lambda API, original Aurora/Lambdas | Preserved; not upgraded or re-certified by the Task11 run |
+| Original course deployment | CloudFront/S3 frontend, API Gateway/Lambda API, original Aurora/Lambdas | Removed on 2026-11-01, including the database and cloud backups |
 | Task7/8 local Kubernetes | API Deployment, ETL Jobs/CronJob, local fixture storage | Verified and cleaned; some fault drills use labelled synthetic input |
 | Task9 EKS | Actual EKS API/ETL, S3 raw/quarantine, Aurora market/application DBs, scoped IAM | AWS data/operations verified,67 Terraform resources destroyed; test JWT signer |
-| Task10 CI | GitHub-hosted disposable Kubernetes, fixture DB/auth; real OIDC/ECR release | Verified and cleaned; reusable IAM/OIDC/empty ECR configuration retained |
-| Manual EKS CD | Real temporary EKS, tested API images, isolated PostgreSQL/JWT/AWS transport fixtures | Release and fault rollback passed; [acceptance and cleanup record](../verification/manual-eks-cd.md) |
-| Task11 showcase | Local Next.js/FastAPI/market PostgreSQL; real Clerk, separate Aurora app DB, SQS and five isolated workers; live embedding/vector resources | Real authenticated analysis verified; see current cleanup status in [Task11](../verification/task-11-showcase.md) |
+| Task10 CI | GitHub-hosted disposable Kubernetes, fixture DB/auth; historical OIDC/ECR release | CI remains enabled; cloud IAM/OIDC/ECR bootstrap removed on 2026-11-01 |
+| Manual EKS CD | Real temporary EKS, tested API images, isolated PostgreSQL/JWT/AWS transport fixtures | Release and rollback passed; runtime and bootstrap now removed, release/recovery workflows disabled; [historical evidence](../verification/manual-eks-cd.md) |
+| Task11 showcase | Local Next.js/FastAPI/market PostgreSQL; real Clerk, separate Aurora app DB, SQS and five isolated workers; embedding/vector resources | Real authenticated analysis verified; AWS dependencies now removed; [historical evidence](../verification/task-11-showcase.md) |
 
 ## Storage responsibilities
 

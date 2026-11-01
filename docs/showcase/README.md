@@ -1,6 +1,14 @@
 # Alex: from course application to an evidenced engineering project
 
+English | [繁體中文](README.zh-TW.md)
+
 Alex starts from Ed Donner's **AI in Production** course. The personal extension adds traceable daily market data, recoverable ETL, frozen analysis prices, research provenance, Kubernetes operations and controlled delivery. The goal is a reproducible engineering demonstration, not trading advice or a claim of production traffic.
+
+**Current status — 2026-11-01:** all inventoried AWS project resources were removed
+after acceptance, including the original application and deployment bootstrap.
+CI still runs; cloud release/recovery workflows are disabled. The results below
+are historical engineering evidence. Rebuilding the cloud dependencies is required
+to run the full application again; see the [cleanup and rebuild record](../verification/aws-account-cleanup.md).
 
 Start with the [architecture](architecture.md), [short evidence walkthrough](walkthrough.mp4), [walkthrough transcript](walkthrough.md), [latest acceptance record](../verification/task-11-showcase.md) and [rebuild/cleanup runbook](../../deploy/showcase/README.md). The video presents recorded results; it is not a recording of the user's browser. Run the actual app using the runbook to inspect interactive behavior.
 
@@ -32,4 +40,4 @@ Start with the [architecture](architecture.md), [short evidence walkthrough](wal
 
 “I extended a course-based multi-agent portfolio application with a daily market-data pipeline and Kubernetes deployment. I implemented provenance and quality checks, quarantine and backfill, immutable price snapshots and controlled CI/CD. In bounded AWS acceptance, I verified1,280 market records, workload permission isolation, real alert delivery and failed-release rollback; a separate real-Clerk workflow completed and persisted report, chart and retirement outputs.”
 
-Use the linked evidence to explain failures and tradeoffs. Do not describe the system as always-on, high-traffic, deployed to EKS on every merge, financially audited, or built entirely from scratch. The EKS CD extension requires a manual trigger and uses isolated API dependencies; it is not a full-application production cutover. Final billing reconciliation remains independent. The original AWS application may still exist, but its older deployment is not the newly validated personal platform.
+Use the linked evidence to explain failures and tradeoffs. Do not describe the system as always-on, high-traffic, deployed to EKS on every merge, financially audited, or built entirely from scratch. The EKS CD extension uses a manual trigger and isolated API dependencies; it is not a full-application production cutover. Final billing reconciliation remains independent. The original AWS application was also removed in the account cleanup.

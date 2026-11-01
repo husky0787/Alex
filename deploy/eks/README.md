@@ -1,6 +1,14 @@
 # Bounded EKS acceptance
 
-Run from the repository root. This environment is an eight-hour acceptance window, not an always-on replacement for the current API. Read [cost and ownership boundaries](../../docs/verification/task-09-cloud-window.md) first. Terraform state, credentials, raw data, signing keys and evidence stay under ignored local paths and must not be committed.
+English | [繁體中文](README.zh-TW.md)
+
+**Current status — 2026-11-01:** the EKS acceptance resources and original Aurora
+cluster, admin secret and custom database security group have been deleted.
+Rebuild and verify the database/network prerequisites below before `prepare.py`;
+old ARNs, kubeconfig and deployment outputs do not identify a live environment.
+See the [cleanup/rebuild record](../../docs/verification/aws-account-cleanup.md).
+
+Run from the repository root. This environment is an eight-hour acceptance window, not an always-on application deployment. Read [cost and ownership boundaries](../../docs/verification/task-09-cloud-window.md) first. Terraform state, credentials, raw data, signing keys and evidence stay under ignored local paths and must not be committed.
 
 ## Architecture
 

@@ -1,6 +1,16 @@
 # Terraform Infrastructure
 
+English | [繁體中文](README.zh-TW.md)
+
 This directory contains Terraform configurations for the Alex Financial Planner project.
+
+**Current status — 2026-11-01:** the deployed AWS project resources were removed,
+including the original application and CI/CD bootstrap. The configurations remain
+as rebuildable source. Existing local state and saved plans may describe resources
+deleted outside Terraform: preserve a private state backup, compare a fresh plan
+with live inventory, and reconcile drift before an intentional rebuild. Do not
+apply an old saved plan or reuse deleted-resource outputs. Choose one deployment
+path and its prerequisites; see the [cleanup/rebuild record](../docs/verification/aws-account-cleanup.md).
 
 ## Structure
 
@@ -8,11 +18,15 @@ Each part of the course has its own independent Terraform directory:
 
 - **`2_sagemaker/`** - SageMaker serverless endpoint for embeddings (Guide 2)
 - **`3_ingestion/`** - S3 Vectors, Lambda, and API Gateway for document ingestion (Guide 3)
-- **`4_researcher/`** - App Runner service for AI researcher agent (Guide 4)
+- **`4_researcher/`** - Container-image Lambda for the research agent and its optional schedule (Guide 4)
 - **`5_database/`** - Aurora Serverless v2 PostgreSQL with Data API (Guide 5)
 - **`6_agents/`** - Lambda functions for agent orchestra (Guide 6)
 - **`7_frontend/`** - API Lambda and frontend infrastructure (Guide 7)
-- **`8_observability/`** - LangFuse and monitoring setup (Guide 8)
+- **`8_enterprise/`** - CloudWatch monitoring dashboards (Guide 8)
+
+Personal extensions have separate modules: `6_research_acceptance/`, `9_eks/`,
+`10_ci/`, `11_showcase/` and `12_cd/`. Follow the matching runbook rather than
+applying every directory as one environment.
 
 ## Key Design Decisions
 
@@ -74,7 +88,7 @@ Some Terraform configurations require environment variables from your `.env` fil
 
 This structure is optimized for learning. In production, you might consider:
 
-- **Remote State**: Store state in S3 with state locking via DynamoDB
+- **Remote State**: Use an access-controlled remote backend and configure locking appropriate to the Terraform/backend version
 - **Modules**: Share common configurations across environments
 - **Workspaces**: Manage multiple environments (dev, staging, prod)
 - **CI/CD**: Automated deployment pipelines
@@ -91,20 +105,7 @@ If you encounter issues:
 
 2. **Missing Dependencies**: Ensure you've completed earlier guides and have the required environment variables
 
-3. **Clean Slate**: To start over in any directory:
-   ```bash
-   terraform destroy  # Remove resources
-   rm -rf .terraform terraform.tfstate*  # Clean local files
-   terraform init  # Reinitialize
-   ```
-
-## Cleanup Helper
-
-To clean up old monolithic Terraform files (if upgrading from an older version):
-
-```bash
-cd terraform
-python cleanup_old_structure.py
-```
-
-This will identify old files that can be safely removed.
+3. **Rebuild after cleanup**: Keep a private state backup and verify live resource
+   ownership. Review a fresh plan for the selected module before applying. If
+   resources still exist, destroy them only through a reviewed plan that targets
+   their owning state. Do not delete state files to hide drift or orphan resources.

@@ -1,5 +1,14 @@
 # Reproduce the portfolio showcase
 
+English | [繁體中文](README.zh-TW.md)
+
+**Current status — 2026-11-01:** the original Aurora cluster/admin secret and all
+showcase AWS workers were deleted. Rebuild the matching application database
+infrastructure and initialize its schema before the preflight below. Old `.env`
+ARNs and `.local/showcase/` ledgers are historical; inspect and archive them before
+creating a fresh run. Do not rerun the historical database cleanup against the
+deleted cluster. See the [cleanup/rebuild record](../../docs/verification/aws-account-cleanup.md).
+
 This runbook connects the real Next.js/FastAPI/Clerk flow to isolated AWS workers and a separate application database. It does not replace the original application. The market database and frontend/API run locally; use the [EKS runbook](../eks/README.md) to reproduce Task9's different deployment. Read the [acceptance record](../../docs/verification/task-11-showcase.md) and [cloud allowance](../../docs/verification/task-11-cloud-window.md) first.
 
 ## Prerequisites and ownership

@@ -1,6 +1,14 @@
 # Alex | Multi-Agent Portfolio Intelligence Platform
 
+English | [繁體中文](README.zh-TW.md)
+
 Alex is a course-based portfolio intelligence application extended with verified daily market data, recoverable ETL, frozen analysis prices, research provenance, Kubernetes operations and controlled delivery. Authenticated users manage holdings and retrieve persistent reports, charts and retirement projections.
+
+**Deployment status — 2026-11-01:** the AWS project resources have been removed,
+including the original application and CI/CD IAM, OIDC and ECR bootstrap. There is
+no live AWS demo. GitHub CI remains enabled; AWS release and recovery workflows
+are disabled. The source and historical acceptance evidence remain available.
+See the [cleanup record and rebuild prerequisites](docs/verification/aws-account-cleanup.md).
 
 **Start here:** [project showcase and contribution boundaries](docs/showcase/README.md) · [full architecture, including data engineering and Kubernetes](docs/showcase/architecture.md) · [45-second evidence walkthrough](docs/showcase/walkthrough.mp4) · [reproduce and clean up](deploy/showcase/README.md) · [real authenticated acceptance](docs/verification/task-11-showcase.md).
 
@@ -73,7 +81,7 @@ flowchart LR
 
 ## Run Locally
 
-For the validated personal-project flow, use the [isolated showcase runbook](deploy/showcase/README.md). The commands below are the original application entry points and require their own matching deployed configuration; they do not create the showcase or its market database.
+For the validated personal-project flow, use the [isolated showcase runbook](deploy/showcase/README.md). Both that flow and the original application commands below require AWS dependencies to be rebuilt first; starting the local servers alone does not restore a working analysis application. The commands below do not create the showcase or its market database.
 
 ### Prerequisites
 

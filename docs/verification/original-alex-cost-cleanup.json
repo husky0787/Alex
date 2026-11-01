@@ -1,0 +1,19 @@
+{
+  "checked_at": "2026-11-01T03:18:04.747813+00:00",
+  "scope": "Alex only",
+  "original_aurora_and_backups_deleted": true,
+  "final_snapshot_created": false,
+  "s3_buckets_deleted": 2,
+  "log_groups_deleted": 6,
+  "dashboards_deleted": 2,
+  "cloudfront_disabled_and_deployed": true,
+  "direct_api_endpoint_disabled": true,
+  "lambda_functions_paused": 6,
+  "planner_trigger_disabled": true,
+  "ecr_repositories_empty": 2,
+  "active_alex_secrets": 0,
+  "original_secret_pending_deletion_days": 7,
+  "other_projects_instances_disks_and_ip_preserved": true,
+  "local_retention": "Deployment files, static website files, logs and configuration; no new database backup",
+  "limitations": "Historical usage still appears in delayed billing; other projects continue their own charges. Retained services can incur request charges if used or re-enabled."
+}

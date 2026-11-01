@@ -1,0 +1,19 @@
+{
+  "checked_at": "2026-11-01T05:22:20.737910+00:00",
+  "scope": "All inventoried AWS project workloads, including Alex, devops and turing-eye",
+  "regions_checked": 17,
+  "post_deletion_checks": 657,
+  "remaining_workload_categories": 0,
+  "query_errors": 0,
+  "unsupported_service_region_checks_skipped": 14,
+  "ec2_instances_deleted": 2,
+  "ebs_gib_deleted": 130,
+  "elastic_ips_released": 1,
+  "secrets_force_deleted": 4,
+  "new_backups_created": false,
+  "github_cd_disabled": true,
+  "github_recovery_disabled": true,
+  "retained": "Account access, billing settings, AWS-managed service-linked roles and default networks",
+  "ongoing_inventoried_project_cost_usd_per_month_estimate": 0,
+  "limitations": "Historical usage may still bill; not account closure or exhaustive subscription audit. Local source and artifacts retained."
+}

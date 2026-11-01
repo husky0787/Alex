@@ -1,5 +1,12 @@
 # Manual release to temporary EKS
 
+English | [繁體中文](README.zh-TW.md)
+
+**Current status — 2026-11-01:** release and recovery workflows are disabled.
+The cloud bootstrap (IAM roles, GitHub OIDC provider and ECR repositories) was
+deleted after successful acceptance. Complete bootstrap again before enabling
+either workflow. See the [cleanup/rebuild record](../../docs/verification/aws-account-cleanup.md).
+
 After one-time bootstrap, open **Actions → Release to temporary EKS → Run workflow**
 on **main**. The workflow finds successful CI for exactly that revision, downloads
 its tested images, creates real EKS, verifies release/rollback, saves safe evidence,
@@ -17,8 +24,10 @@ evidence; do not combine those claims into a full production CD run.
 1. Verify the current AWS account, credits/expiry/service eligibility and the cost
    window below. Preserve the existing default AWS CLI identity. Use the operator's
    short-lived credentials to plan `terraform/12_cd`; never save static keys in
-   GitHub. Reuse the existing GitHub OIDC provider ARN. Existing EKS and managed-node
-   service-linked roles from Task 9 are prerequisites; verify they exist.
+   GitHub. Verify a live GitHub OIDC provider ARN, creating the provider under
+   explicitly managed ownership if absent; `terraform/12_cd` only accepts its ARN
+   and does not create it. The previously used provider was deleted. Existing EKS
+   and managed-node service-linked roles from Task 9 are prerequisites; verify they exist.
 2. Run `terraform init`, `terraform test`, and review `terraform plan` for only this
    module, then apply the reviewed plan. Keep this module's state in private backup.
    It creates IAM roles/policies and one empty ECR repository, not a running cluster.
@@ -27,7 +36,8 @@ evidence; do not combine those claims into a full production CD run.
    Confirm the actual immutable repository OIDC subject against GitHub's API. A fork
    needs its own identity in the Terraform trust policy.
 4. Set repository variable `ALEX_CD_RECOVERY_ENABLED=true`. Ensure both workflows
-   are on the default branch before enabling releases. Recovery must run without
+   are on the default branch, then re-enable recovery before the release workflow.
+   Recovery must run without
    a human approval wait so an interrupted cluster is not left billing.
 5. After current billing review, set environment variable `ALEX_CD_APPROVED_UNTIL`
    to a UTC ISO timestamp between two and 24 hours from the release start. This is
@@ -92,9 +102,11 @@ If the stack is absent but the named EKS cluster exists, the helper reports an
 orphan and refuses to delete without ownership evidence. Inspect it manually.
 ECR has a one-day lifecycle fallback for orphan image artifacts; this is not instant.
 
-Bootstrap IAM/OIDC references and an empty ECR repository remain reusable. Removing
-bootstrap requires a separate reviewed Terraform destroy after all runtime resources
-are absent. The shared existing OIDC provider is never owned by this module.
+Normal per-run cleanup retains bootstrap IAM/OIDC references and an empty ECR
+repository. The 2026-11-01 account cleanup removed that bootstrap separately.
+For future environments, remove bootstrap only after runtime resources are absent
+and its destruction plan has been reviewed. The shared OIDC provider is not owned
+by this module and requires its own ownership/rebuild lifecycle.
 
 ## Cost window
 
@@ -127,5 +139,6 @@ terraform -chdir=terraform/12_cd test
 Real EKS release, rollback and cleanup passed on 2026-11-01; see the
 [verification record](../../docs/verification/manual-eks-cd.md) for exact source
 revisions, failures corrected and independent resource checks. The reviewed
-release window is now closed; refresh the cost review and window before another
-manual release. Unit tests alone do not replace cloud acceptance.
+release window is closed and bootstrap is now removed. Rebuild it, refresh GitHub
+environment values, review costs, re-enable recovery/release workflows and open a
+new window before another release. Unit tests alone do not replace cloud acceptance.

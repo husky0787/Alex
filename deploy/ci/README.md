@@ -1,5 +1,12 @@
 # Controlled delivery
 
+English | [繁體中文](README.zh-TW.md)
+
+**Current status — 2026-11-01:** credential-free CI remains enabled. The AWS
+IAM/OIDC/ECR bootstrap has been deleted, and the separate cloud release/recovery
+workflows are disabled. AWS delivery requires rebuilding those prerequisites;
+see the [cleanup record](../../docs/verification/aws-account-cleanup.md).
+
 Every main-branch push and pull request update runs PostgreSQL market-data integration, API JWT/ownership contracts, frontend tests/lint/type-check/build and release failure tests. Only after both backend and frontend pass does CI build the API/ETL image from the locked backend workspace. Actions are pinned to commit SHAs; ordinary jobs have only `contents: read`, no cloud credentials and no paid-model calls.
 
 CI builds the checked-out commit and its parent, records their Git revisions, image IDs and archive SHA256 values, then deploys immutable registry digests to disposable k3d. The runner verifies one healthy release and an intentionally missing digest. The shared release tool restores the previous healthy template on failure, rechecks readiness, and returns a nonzero exit code even after recovery. Authenticated smoke tests run after both outcomes. It refuses mutable tags, unhealthy rollback baselines and concurrent template overwrites. No database migration runs during image rollout; existing fixture data and schema remain in place.
@@ -11,8 +18,9 @@ credentials or publishing on push. Use the separate [manual EKS workflow](../cd/
 to release an exact successful main CI revision to temporary real EKS.
 
 Task 10's original ECR-only controlled release has been superseded by this manual
-workflow. Its `terraform/10_ci` IAM/ECR setup remains separate and is not used or
-deleted by the new CD module. `ALEX_RELEASE_COMMIT` no longer triggers deployment.
+workflow. Its `terraform/10_ci` IAM/ECR module remains separate and is not used or
+managed by the new CD module; its deployed resources were removed in the account
+cleanup. `ALEX_RELEASE_COMMIT` no longer triggers deployment.
 The original `acceptance.py --ecr` operator tool remains available for reproducing
 historical Task 10 evidence; it deploys to runner k3d, not EKS.
 ## Existing EKS environments
