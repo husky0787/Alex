@@ -1,0 +1,43 @@
+{
+  "environment": "AWS EKS",
+  "commit": "508920bc9021f58234f05c90cd6b503a8b580c96",
+  "source_ci_run": "41211725719",
+  "images": {
+    "baseline": "sha256:1bd23b186449ba67c03426ba31e5d2b1a47845bdd1286a371eb0c5a89c5f3a88",
+    "candidate": "sha256:b94f17c00d5c16604fa511f5c010d16fce876f52180aae53255fd604199899a5"
+  },
+  "fixtures": true,
+  "healthy_release": true,
+  "failed_release_rolled_back": true,
+  "authenticated_smoke_after_each": true,
+  "database_schema_unchanged": true,
+  "application_node_credentials_blocked": true,
+  "release_id": "41212113839-3",
+  "run_url": "https://github.com/husky0787/Alex/actions/runs/41212113839/attempts/3",
+  "iam_revision": "9621c25be7085b881a0fbc8d9c48a8cd648d0c6f",
+  "release": {
+    "status": "succeeded",
+    "started_at": "2026-11-01T02:22:50.974517+00:00",
+    "finished_at": "2026-11-01T02:23:10.906076+00:00"
+  },
+  "rollback": {
+    "status": "rolled_back",
+    "started_at": "2026-11-01T02:23:14.901816+00:00",
+    "finished_at": "2026-11-01T02:24:20.436459+00:00"
+  },
+  "independent_cleanup": {
+    "release_id": "41212113839-3",
+    "checked_at": "2026-11-01T02:39:29.634633+00:00",
+    "stack_absent": true,
+    "cluster_absent": true,
+    "worker_instances_terminated": 2,
+    "worker_volumes_absent": true,
+    "owned_network_absent": true,
+    "launch_template_absent": true,
+    "release_repository_empty": true,
+    "original_resources_preserved": true,
+    "original_aurora_status": "stopped",
+    "aurora_status_change": "Prior root-console StopDBCluster at 2026-10-31T15:07:02Z; not this CD workflow",
+    "retained": "Dedicated reusable IAM bootstrap and empty ECR repository"
+  }
+}

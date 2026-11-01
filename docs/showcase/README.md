@@ -14,7 +14,7 @@ Start with the [architecture](architecture.md), [short evidence walkthrough](wal
 | Researcher, embeddings and vector search | Source URL/capture-time/research-ID contracts, read-back receipts and honest unavailable-research behavior | [Task6](../verification/task-06-aws-acceptance.md) |
 | No personal daily-market ETL in the original guide flow |20-symbol universe,90-day backfill, raw archive, quarantine, idempotency, durable recovery, coverage and scheduling | [Task2](../verification/task-02-verified-price.md), [Task3](../verification/task-03-quality-recovery.md), [Task8](../verification/task-08-scheduled-etl.md) |
 | Serverless application deployment | FastAPI Deployment and ETL CronJob on local Kubernetes and bounded EKS; separate workload permissions, HPA, alarms, rollback | [Task7](../verification/task-07-local-kubernetes-api.md), [Task9](../verification/task-09-eks-acceptance.md) |
-| Manual deployment scripts | Pinned CI gates, immutable image digests, GitHub OIDC/ECR and failed-rollout recovery | [Task10](../verification/task-10-cicd.md) |
+| Manual deployment scripts | Pinned CI gates, immutable images, OIDC/ECR, manually triggered temporary EKS delivery and failed-rollout recovery | [Task10](../verification/task-10-cicd.md), [manual EKS CD](../verification/manual-eks-cd.md) |
 
 ## Evidence map
 
@@ -25,11 +25,11 @@ Start with the [architecture](architecture.md), [short evidence walkthrough](wal
 | Missing dates and recovery | Missing-window detection/backfill and interrupted-run recovery; error reasons and quality failures remain visible | Integration/fault drills documented in Task3/4/8 |
 | Repeat safety | EKS manual Job and controller CronJob kept prices/observations at1,280/1,280 | Does not imply exactly-once delivery of all cloud messages |
 | Alert delivery | Failed ETL and zero healthy ALB targets delivered actual notifications to SQS | Test receiver, not an on-call team's response-time measurement |
-| Rollback | Invalid image/digest failed; previous healthy image restored and authenticated smoke passed | EKS operator drill and separate hosted-runner CI drill |
+| Rollback | Invalid image/digest failed; previous healthy image restored and authenticated smoke passed | EKS operator drill, hosted-runner CI drill and manually triggered EKS CD |
 | Full application analysis | Normal Brave/Clerk login, fictional holdings, real SQS/Planner/Bedrock specialists, attributed research and saved UI results | Task11 uses local API/market DB; Task9 separately establishes EKS |
 
 ## A concise interview explanation
 
 “I extended a course-based multi-agent portfolio application with a daily market-data pipeline and Kubernetes deployment. I implemented provenance and quality checks, quarantine and backfill, immutable price snapshots and controlled CI/CD. In bounded AWS acceptance, I verified1,280 market records, workload permission isolation, real alert delivery and failed-release rollback; a separate real-Clerk workflow completed and persisted report, chart and retirement outputs.”
 
-Use the linked evidence to explain failures and tradeoffs. Do not describe the system as always-on, high-traffic, automatically deployed to EKS, financially audited, or built entirely from scratch. Final billing reconciliation remains independent. The original AWS application may still exist, but its older deployment is not the newly validated personal platform.
+Use the linked evidence to explain failures and tradeoffs. Do not describe the system as always-on, high-traffic, deployed to EKS on every merge, financially audited, or built entirely from scratch. The EKS CD extension requires a manual trigger and uses isolated API dependencies; it is not a full-application production cutover. Final billing reconciliation remains independent. The original AWS application may still exist, but its older deployment is not the newly validated personal platform.

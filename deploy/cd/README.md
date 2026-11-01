@@ -124,6 +124,8 @@ terraform -chdir=terraform/12_cd init
 terraform -chdir=terraform/12_cd test
 ```
 
-Cloud acceptance is pending until a real Actions run and independent cleanup check
-are linked in the verification record. Unit tests and template validation alone
-do not establish that live IAM, EKS provisioning or networking works.
+Real EKS release, rollback and cleanup passed on 2026-11-01; see the
+[verification record](../../docs/verification/manual-eks-cd.md) for exact source
+revisions, failures corrected and independent resource checks. The reviewed
+release window is now closed; refresh the cost review and window before another
+manual release. Unit tests alone do not replace cloud acceptance.

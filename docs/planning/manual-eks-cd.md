@@ -43,6 +43,9 @@ eligible. The release consumes its verified image archives without rebuilding.
 
 ## Verification status
 
-Implementation and local review are complete; follow PR #27 for live CI state.
-Do not claim this extension ran on AWS until a real manual Actions run and an
-independent absence check are recorded.
+Completed on 2026-11-01: [attempt 3](https://github.com/husky0787/Alex/actions/runs/41212113839/attempts/3)
+passed real EKS release, authenticated checks, fault rollback and automatic cleanup.
+Independent AWS checks confirmed runtime removal and preserved original resources,
+with the separately explained prior Aurora stop. See the
+[verification record](../verification/manual-eks-cd.md). The release window is
+closed; reusable IAM/empty ECR remain. Billing reconciliation is separate.

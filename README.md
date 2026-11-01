@@ -53,6 +53,7 @@ flowchart LR
 - **Asynchronous orchestration:** SQS decouples request handling from long-running agent execution; a dead-letter queue retains messages that exhaust retry attempts.
 - **Specialized workloads:** the Planner delegates narrative reporting, charts and retirement projections to independently deployable Lambda functions; Tagger classifies instruments separately.
 - **Data engineering and operations:** daily market ingestion, quality quarantine, backfill and idempotency; API/ETL Kubernetes workloads with bounded EKS acceptance, workload IAM, alerts and rollback.
+- **Manual EKS delivery:** a successful exact-revision CI gates tested image promotion, temporary EKS provisioning, authenticated checks, fault rollback and owned-resource cleanup. See the [runbook](deploy/cd/README.md) and [verification](docs/verification/manual-eks-cd.md).
 - **Durable, isolated outputs:** agents write to dedicated Aurora JSONB job fields rather than requiring a shared in-memory result merger.
 - **AI integration:** OpenAI Agents SDK runs against Amazon Bedrock; the Tagger uses structured outputs, while tool-oriented agents use purpose-built data and retrieval tools.
 - **Knowledge retrieval:** financial research is embedded by SageMaker and indexed in S3 Vectors for semantic retrieval.
@@ -115,7 +116,7 @@ Individual agents also provide `test_simple.py` and `test_full.py` within their 
 
 ## Deploy to AWS
 
-The following is the original guide deployment order. For the personal extension, choose the [showcase](deploy/showcase/README.md), [EKS](deploy/eks/README.md) or [controlled CI](deploy/ci/README.md) runbook and its corresponding state; do not apply all of them as one environment.
+The following is the original guide deployment order. For the personal extension, choose the [showcase](deploy/showcase/README.md), [EKS](deploy/eks/README.md), [CI](deploy/ci/README.md) or [manual EKS CD](deploy/cd/README.md) runbook and its corresponding state; do not apply all of them as one environment.
 
 Terraform is intentionally split into independent components. Each component maintains its own local state and requires a `terraform.tfvars` file created from its corresponding example before it is applied.
 

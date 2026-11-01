@@ -1,5 +1,7 @@
 # Alex 第一版規劃
 
+2026-11-01 接續更新：「按一次發布」EKS CD 已完成真實發布、授權檢查、故障回滾與自動清理，PR #27–31 已合併。獨立核對確認測試叢集、節點、磁碟及網路已移除，發布窗口已關閉；保留可重用 IAM 與空 ECR。原 Aurora 在此前另由主控台停止，保持停止。見 [驗證紀錄](../verification/manual-eks-cd.md)；帳單核對仍獨立追蹤。
+
 更新日期：2026-10-31。狀態：任務 1–10 的實作 PR 均已合併；任務 6 的功能驗收通過，費用核對獨立追蹤。任務 10 的 PR #24 已合併為 `7d7c5d5`，issue #12 已關閉。任務 11 已於 PR #25 合併為 `4fc26b3`，issue #13 已關閉，隔離資源已清理。目前延伸工作為使用者選定的「按一次發布」短期 EKS CD，見 [規格](manual-eks-cd.md) 與 [操作文件](../../deploy/cd/README.md)。GitHub Issues 是狀態主要來源。
 
 規格：[alex-v1-spec.md](alex-v1-spec.md)。任務：[任務清單](alex-v1-tickets/README.md)。

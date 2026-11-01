@@ -36,11 +36,25 @@ flowchart TB
     API -->|read saved results| Human
     Cron --> Events[Execution/alert events]
     Events --> Alerts[CloudWatch / SNS / test SQS receiver]
-    CI[GitHub Actions tests + OIDC + ECR] --> Release[Exact image digest + rollout/rollback]
-    Release --> Kubernetes
+    CI[GitHub Actions CI] --> Runner[Disposable runner Kubernetes tests]
+    Runner --> Archives[Verified image archives + exact source SHA]
+    Operator[Operator: Run workflow on main] --> CD[Manual CD: CI gate + OIDC + ECR]
+    Archives --> CD
+    CD --> Temporary[Temporary EKS: API + isolated fixtures]
+    Temporary --> Verify[Authenticated checks + failed-release rollback]
+    Verify --> Cleanup[Delete owned runtime + image tags]
 ```
 
-The delivery arrow means a shared release tool exists. Task10 automatically deploys to disposable **runner Kubernetes**; deployment to EKS is still a controlled operator step. The diagram's Tagger arrow is intentionally separate: the current Planner path orchestrates the three analysis specialists, not an automatic Tagger invocation. Reporter uses SageMaker for query embedding as well as vector retrieval.
+CI tests images on disposable **runner Kubernetes**. The separate manual CD workflow
+consumes those exact archives and provisions its own temporary EKS API acceptance
+environment with PostgreSQL/JWT/AWS transport fixtures. Merging to main runs CI;
+the operator starts AWS delivery separately. This CD path does not deploy the
+ETL/frontend or cut over the application to the Task9 environment. See its
+[runbook](../../deploy/cd/README.md) and [verification](../verification/manual-eks-cd.md).
+
+The diagram's Tagger arrow is intentionally separate: the current Planner path
+orchestrates the three analysis specialists, not an automatic Tagger invocation.
+Reporter uses SageMaker for query embedding as well as vector retrieval.
 
 | Environment | Runtime and storage | Observed status |
 | --- | --- | --- |
@@ -48,6 +62,7 @@ The delivery arrow means a shared release tool exists. Task10 automatically depl
 | Task7/8 local Kubernetes | API Deployment, ETL Jobs/CronJob, local fixture storage | Verified and cleaned; some fault drills use labelled synthetic input |
 | Task9 EKS | Actual EKS API/ETL, S3 raw/quarantine, Aurora market/application DBs, scoped IAM | AWS data/operations verified,67 Terraform resources destroyed; test JWT signer |
 | Task10 CI | GitHub-hosted disposable Kubernetes, fixture DB/auth; real OIDC/ECR release | Verified and cleaned; reusable IAM/OIDC/empty ECR configuration retained |
+| Manual EKS CD | Real temporary EKS, tested API images, isolated PostgreSQL/JWT/AWS transport fixtures | Release and fault rollback passed; [acceptance and cleanup record](../verification/manual-eks-cd.md) |
 | Task11 showcase | Local Next.js/FastAPI/market PostgreSQL; real Clerk, separate Aurora app DB, SQS and five isolated workers; live embedding/vector resources | Real authenticated analysis verified; see current cleanup status in [Task11](../verification/task-11-showcase.md) |
 
 ## Storage responsibilities
