@@ -103,6 +103,7 @@ resource "aws_iam_role_policy" "cloudformation" {
     { Effect = "Allow", Action = "iam:PassRole", Resource = [aws_iam_role.cluster.arn, aws_iam_role.node.arn],
     Condition = { StringEquals = { "iam:PassedToService" = ["eks.amazonaws.com", "ec2.amazonaws.com"] } } },
     { Effect = "Allow", Action = ["iam:GetRole"], Resource = [aws_iam_role.cluster.arn, aws_iam_role.node.arn] },
+    { Effect = "Allow", Action = ["iam:GetRole"], Resource = "arn:aws:iam::${local.account}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup" },
     { Effect = "Allow", Action = ["iam:ListAttachedRolePolicies"], Resource = [aws_iam_role.node.arn, aws_iam_role.cluster.arn] },
     # EKS validates the caller's EC2 launch permissions even for managed nodes.
     # Every RunInstances request also authorizes its template and subnet below.

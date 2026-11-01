@@ -94,7 +94,14 @@ def preflight_roles():
         raise RuntimeError('CloudFormation role prerequisites denied or missing before provisioning: ' + ', '.join(missing))
     if any(item['EvalDecision'] != 'allowed' for item in response['EvaluationResults']):
         raise RuntimeError('Aggregate IAM role-inspection authorization denied before provisioning')
+    service_role = os.environ['ALEX_CD_CF_ROLE_ARN'].split(':role/')[0] + ':role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup'
+    service_check = aws('iam', 'simulate-principal-policy',
+        PolicySourceArn=os.environ['ALEX_CD_CF_ROLE_ARN'], ActionNames=['iam:GetRole'], ResourceArns=[service_role])
+    entries = service_check['EvaluationResults']
+    if len(entries) != 1 or entries[0].get('EvalActionName') != 'iam:GetRole' or entries[0].get('EvalResourceName') != service_role or entries[0].get('EvalDecision') != 'allowed':
+        raise RuntimeError('EKS nodegroup service-linked role inspection denied or missing before provisioning')
     evidence('preflight.json', {'role_inspection_allowed': True, 'roles': ['node', 'cluster'],
+        'nodegroup_service_role_read_allowed': True,
         'actions': actions, 'limitation': 'IAM simulation; live provisioning still verifies service behavior'})
     print('IAM role-inspection prerequisites allowed for both dedicated roles', flush=True)
 
