@@ -181,9 +181,25 @@ class PrerequisiteTests(unittest.TestCase):
             for action in ('iam:GetRole', 'iam:ListAttachedRolePolicies')]}
 
     def test_both_role_checks_pass_before_provisioning(self):
-        with patch.object(lifecycle, 'aws', return_value=self.response()) as aws, patch.object(lifecycle, 'evidence'):
+        service = {'EvaluationResults': [{'EvalActionName': 'iam:GetRole', 'EvalDecision': 'allowed',
+            'EvalResourceName': 'arn:aws:iam::123456789012:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup'}]}
+        with patch.object(lifecycle, 'aws', side_effect=[self.response(), service]) as aws, patch.object(lifecycle, 'evidence'):
             lifecycle.preflight_roles()
             self.assertEqual(aws.call_args.args, ('iam', 'simulate-principal-policy'))
+
+    def test_service_role_denial_stops_before_create_stack(self):
+        service = {'EvaluationResults': [{'EvalActionName': 'iam:GetRole', 'EvalDecision': 'implicitDeny',
+            'EvalResourceName': 'arn:aws:iam::123456789012:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup'}]}
+        with patch.object(lifecycle, 'stack', return_value=None), patch.object(lifecycle, 'aws', side_effect=[self.response(), service]) as aws:
+            with self.assertRaisesRegex(RuntimeError, 'service-linked role inspection'):
+                lifecycle.create('42-1')
+            self.assertEqual(aws.call_count, 2)
+
+    def test_missing_service_role_result_stops_before_create_stack(self):
+        with patch.object(lifecycle, 'stack', return_value=None), patch.object(lifecycle, 'aws', side_effect=[self.response(), {'EvaluationResults': []}]) as aws:
+            with self.assertRaisesRegex(RuntimeError, 'service-linked role inspection'):
+                lifecycle.create('42-1')
+            self.assertEqual(aws.call_count, 2)
 
     def test_cluster_policy_denial_stops_before_create_stack(self):
         response = self.response()
