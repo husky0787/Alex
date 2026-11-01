@@ -1,0 +1,380 @@
+{
+  "schema_version": 1,
+  "diagram_type": "dataflow",
+  "meta": {
+    "title": "Alex｜行情資料工程與恢復",
+    "locale": "zh-TW",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/data-engineering.html",
+    "repository": {
+      "url": "https://github.com/husky0787/Alex",
+      "revision": "461493930d952bd98025d73221530330e93c12bf"
+    }
+  },
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "部署狀態 · 2026-11-01",
+      "items": [
+        "AWS 工作負載與部署基礎設定已清理；本頁是實作與歷史驗收架構，不是在線服務清單。",
+        "CI 保留；AWS CD／復原已停用。各次驗收環境不同，不能視為同時部署。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Extract → Transform → Load",
+      "items": [
+        "20 個股票／ETF、最近 90 個日曆日。取得 split-adjusted 日線，保留來源與交易日。",
+        "先保存原始 HTTP body，再驗證 JSON、來源契約、有限數值、OHLC 關係、交易日與重複日期。",
+        "S3 寫入使用 IfNoneMatch=*，已存在物件不覆寫；原文 SHA-256 可驗證重播。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "冪等、品質與追蹤",
+      "items": [
+        "價格唯一鍵包含 source、symbol、trade_date、adjusted、version；同版重跑不重複新增。",
+        "價格、觀測、拒收紀錄和 run 狀態在資料庫交易中保存；來源修正產生新版本。",
+        "日期齊全仍可能 quality_rejected；backfill 不把部分品質失敗回報為 succeeded。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "恢復與失敗分支",
+      "items": [
+        "批次與 symbol advisory lock 避免重疊；CronJob concurrencyPolicy=Forbid。",
+        "中斷 run 有 raw 時校驗後重播；無原文才重新取得。缺 key 保留 run_id 與 provider_key_required。",
+        "最多三次來源請求，尊重 Retry-After；原文／quarantine 保存失敗時不假裝發布成功。"
+      ]
+    }
+  ],
+  "stages": [
+    {
+      "label": "輸入與排程"
+    },
+    {
+      "label": "原始證據"
+    },
+    {
+      "label": "品質與轉換"
+    },
+    {
+      "label": "持久化"
+    },
+    {
+      "label": "查詢與運用"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "provider",
+      "type": "external",
+      "label": "Massive",
+      "sublabel": "每日 OHLCV",
+      "stage": 0,
+      "row": 0,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/provider.py",
+          "line": 7,
+          "end_line": 34
+        }
+      ]
+    },
+    {
+      "id": "jobs",
+      "type": "backend",
+      "label": "CronJob / Job",
+      "sublabel": "daily / backfill",
+      "stage": 0,
+      "row": 2,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/scheduled.py",
+          "line": 29,
+          "end_line": 80
+        },
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 23,
+          "end_line": 76
+        }
+      ]
+    },
+    {
+      "id": "calendar",
+      "type": "backend",
+      "label": "交易日曆",
+      "sublabel": "美東／發布日期",
+      "stage": 0,
+      "row": 4,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/validation.py",
+          "line": 73,
+          "end_line": 77
+        },
+        {
+          "path": "backend/market_data/market_data/scheduled.py",
+          "line": 29,
+          "end_line": 80
+        }
+      ]
+    },
+    {
+      "id": "fetch",
+      "type": "backend",
+      "label": "取得回應",
+      "sublabel": "限速／有界重試",
+      "stage": 1,
+      "row": 0,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/pipeline.py",
+          "line": 90,
+          "end_line": 169
+        }
+      ]
+    },
+    {
+      "id": "raw",
+      "type": "database",
+      "label": "S3 raw",
+      "sublabel": "原文＋SHA-256",
+      "stage": 1,
+      "row": 2,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/storage.py",
+          "line": 25,
+          "end_line": 39
+        },
+        {
+          "path": "backend/market_data/market_data/pipeline.py",
+          "line": 90,
+          "end_line": 169
+        }
+      ]
+    },
+    {
+      "id": "normalize",
+      "type": "backend",
+      "label": "品質驗證",
+      "sublabel": "OHLCV／重複日",
+      "stage": 2,
+      "row": 2,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/validation.py",
+          "line": 24,
+          "end_line": 82
+        }
+      ]
+    },
+    {
+      "id": "recovery",
+      "type": "backend",
+      "label": "恢復與覆蓋",
+      "sublabel": "鎖／重播／缺日",
+      "stage": 1,
+      "row": 4,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/pipeline.py",
+          "line": 56,
+          "end_line": 88
+        },
+        {
+          "path": "backend/market_data/market_data/backfill.py",
+          "line": 15,
+          "end_line": 59
+        }
+      ]
+    },
+    {
+      "id": "quarantine",
+      "type": "database",
+      "label": "S3 quarantine",
+      "sublabel": "拒收 manifest",
+      "stage": 3,
+      "row": 0,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/pipeline.py",
+          "line": 171,
+          "end_line": 194
+        }
+      ]
+    },
+    {
+      "id": "prices",
+      "type": "database",
+      "label": "PostgreSQL",
+      "sublabel": "價格／版本觀測",
+      "stage": 3,
+      "row": 2,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/repository.py",
+          "line": 85,
+          "end_line": 121
+        }
+      ]
+    },
+    {
+      "id": "runs",
+      "type": "database",
+      "label": "執行與告警表",
+      "sublabel": "run / execution",
+      "stage": 3,
+      "row": 4,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/repository.py",
+          "line": 85,
+          "end_line": 121
+        },
+        {
+          "path": "backend/market_data/market_data/scheduled.py",
+          "line": 29,
+          "end_line": 80
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "Market API",
+      "sublabel": "latest / history",
+      "stage": 4,
+      "row": 1,
+      "sources": [
+        {
+          "path": "backend/api/main.py",
+          "line": 158,
+          "end_line": 220
+        }
+      ]
+    },
+    {
+      "id": "snapshot",
+      "type": "backend",
+      "label": "分析快照",
+      "sublabel": "持倉＋價格雜湊",
+      "stage": 4,
+      "row": 3,
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/analysis.py",
+          "line": 15,
+          "end_line": 62
+        },
+        {
+          "path": "backend/api/main.py",
+          "line": 585,
+          "end_line": 644
+        }
+      ]
+    },
+    {
+      "id": "alerts",
+      "type": "messagebus",
+      "label": "SNS 告警",
+      "sublabel": "失敗／缺日監測",
+      "stage": 4,
+      "row": 4,
+      "sources": [
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 258,
+          "end_line": 277
+        },
+        {
+          "path": "backend/market_data/market_data/scheduled.py",
+          "line": 29,
+          "end_line": 80
+        }
+      ]
+    }
+  ],
+  "flows": [
+    {
+      "id": "provider-fetch",
+      "from": "provider",
+      "to": "fetch",
+      "label": "原始回應"
+    },
+    {
+      "id": "jobs-fetch",
+      "from": "jobs",
+      "to": "fetch",
+      "label": "交易日範圍"
+    },
+    {
+      "id": "fetch-raw",
+      "from": "fetch",
+      "to": "raw",
+      "label": "先存證據"
+    },
+    {
+      "id": "raw-normalize",
+      "from": "raw",
+      "to": "normalize",
+      "label": "原文重播"
+    },
+    {
+      "id": "calendar-normalize",
+      "from": "calendar",
+      "to": "normalize",
+      "label": "合法交易日"
+    },
+    {
+      "id": "raw-recovery",
+      "from": "raw",
+      "to": "recovery",
+      "label": "校驗後重播"
+    },
+    {
+      "id": "recovery-fetch",
+      "from": "recovery",
+      "to": "fetch",
+      "label": "僅缺證據重抓"
+    },
+    {
+      "id": "normalize-quarantine",
+      "from": "normalize",
+      "to": "quarantine",
+      "label": "拒收及原因"
+    },
+    {
+      "id": "normalize-prices",
+      "from": "normalize",
+      "to": "prices",
+      "label": "合格價格"
+    },
+    {
+      "id": "normalize-runs",
+      "from": "normalize",
+      "to": "runs",
+      "label": "品質／覆蓋狀態"
+    },
+    {
+      "id": "prices-api",
+      "from": "prices",
+      "to": "api",
+      "label": "日期化價格"
+    },
+    {
+      "id": "prices-snapshot",
+      "from": "prices",
+      "to": "snapshot",
+      "label": "價格版本"
+    },
+    {
+      "id": "runs-alerts",
+      "from": "runs",
+      "to": "alerts",
+      "label": "非成功事件"
+    }
+  ]
+}

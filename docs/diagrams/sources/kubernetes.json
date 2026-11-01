@@ -1,0 +1,530 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Alex｜Task9 Kubernetes 部署邊界",
+    "locale": "zh-TW",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/kubernetes.html",
+    "repository": {
+      "url": "https://github.com/husky0787/Alex",
+      "revision": "461493930d952bd98025d73221530330e93c12bf"
+    }
+  },
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "部署狀態 · 2026-11-01",
+      "items": [
+        "AWS 工作負載與部署基礎設定已清理；本頁是實作與歷史驗收架構，不是在線服務清單。",
+        "CI 保留；AWS CD／復原已停用。各次驗收環境不同，不能視為同時部署。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "Pod 與排程",
+      "items": [
+        "namespace alex-cloud；API／ETL 使用不同 ServiceAccount 與 IAM role。",
+        "API 有 startup／readiness／liveness probes；RollingUpdate maxUnavailable=0、maxSurge=1。",
+        "每日 00:15 與每小時 :45 監測，America/New_York；初始 suspend=true，由驗收流程解除。",
+        "CronJob 禁止重疊、activeDeadlineSeconds=1800、backoffLimit=0；手動回補複用 Job 模板。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "權限與網路",
+      "items": [
+        "API role：自身 secret、應用庫 Data API、SendMessage；ETL role：自身 secret、raw/quarantine Get/Put、SNS Publish。",
+        "Pod 非 root、唯讀根檔案系統、移除 capabilities、禁止 privilege escalation。",
+        "ALB 私有入口透過 CloudFront VPC origin；節點出站使用 public IPv4，沒有 NAT Gateway。",
+        "資料庫角色和 IAM 各自限制操作；不同 S3 prefix 並不自動建立安全隔離。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "驗收範圍",
+      "items": [
+        "此圖是 Task9 的 API／ETL 雲端部署；真實 Clerk 與完整分析的 Task11 使用另一個隔離環境。",
+        "手動 CD 只驗收 API，使用 ClusterIP 與 PostgreSQL／JWT／AWS transport fixtures；不部署這張圖的完整 Task9 stack。",
+        "所有圖示 AWS 工作負載現已刪除。"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "client",
+      "type": "external",
+      "label": "API 用戶端",
+      "sublabel": "Task9 使用測試 JWT",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 23,
+          "end_line": 76
+        }
+      ]
+    },
+    {
+      "id": "edge",
+      "type": "cloud",
+      "label": "CloudFront",
+      "sublabel": "HTTPS · 不快取 API",
+      "pos": [
+        360,
+        40
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "terraform/9_eks/ingress.tf",
+          "line": 79,
+          "end_line": 100
+        }
+      ]
+    },
+    {
+      "id": "alb",
+      "type": "cloud",
+      "label": "內部 ALB",
+      "sublabel": "私有 VPC origin · HTTP",
+      "pos": [
+        680,
+        40
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "terraform/9_eks/ingress.tf",
+          "line": 27,
+          "end_line": 78
+        }
+      ]
+    },
+    {
+      "id": "service",
+      "type": "backend",
+      "label": "NodePort Service",
+      "sublabel": "30080 → Pod:8000",
+      "pos": [
+        970,
+        40
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 55,
+          "end_line": 62
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI Deployment",
+      "sublabel": "2 replicas · HPA 2–3",
+      "pos": [
+        970,
+        270
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 23,
+          "end_line": 62
+        }
+      ]
+    },
+    {
+      "id": "appdb",
+      "type": "database",
+      "label": "Aurora 應用庫",
+      "sublabel": "API：RDS Data API",
+      "pos": [
+        680,
+        270
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 299,
+          "end_line": 305
+        },
+        {
+          "path": "backend/api/main.py",
+          "line": 585,
+          "end_line": 644
+        }
+      ]
+    },
+    {
+      "id": "queue",
+      "type": "messagebus",
+      "label": "SQS → Reporter",
+      "sublabel": "隔離 Lambda · DLQ",
+      "pos": [
+        360,
+        270
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "end_line": 50,
+          "path": "terraform/9_eks/worker.tf",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "id": "jwt",
+      "type": "security",
+      "label": "測試 JWKS",
+      "sublabel": "隔離驗收 signer",
+      "pos": [
+        970,
+        510
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 27,
+          "end_line": 54
+        }
+      ]
+    },
+    {
+      "id": "identity",
+      "type": "security",
+      "label": "EKS Pod Identity",
+      "sublabel": "API／ETL 各自 IAM role",
+      "pos": [
+        970,
+        740
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 281,
+          "end_line": 314
+        }
+      ]
+    },
+    {
+      "id": "market",
+      "type": "database",
+      "label": "Aurora 行情庫",
+      "sublabel": "PostgreSQL · TLS 驗證",
+      "pos": [
+        680,
+        510
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "docs/showcase/architecture.zh-TW.md",
+          "line": 5,
+          "end_line": 67
+        },
+        {
+          "path": "deploy/eks/README.md",
+          "line": 1,
+          "end_line": 100
+        }
+      ]
+    },
+    {
+      "id": "etl",
+      "type": "backend",
+      "label": "ETL CronJob / Job",
+      "sublabel": "daily · backfill · monitor",
+      "pos": [
+        680,
+        740
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 63,
+          "end_line": 76
+        },
+        {
+          "path": "backend/market_data/market_data/scheduled.py",
+          "line": 29,
+          "end_line": 80
+        }
+      ]
+    },
+    {
+      "id": "source",
+      "type": "external",
+      "label": "Massive",
+      "sublabel": "出站 HTTPS 行情",
+      "pos": [
+        40,
+        740
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/provider.py",
+          "line": 22,
+          "end_line": 34
+        }
+      ]
+    },
+    {
+      "id": "secrets",
+      "type": "security",
+      "label": "Secrets Manager",
+      "sublabel": "API／ETL 各讀自身 secret",
+      "pos": [
+        970,
+        970
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 238,
+          "end_line": 243
+        },
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 299,
+          "end_line": 314
+        }
+      ]
+    },
+    {
+      "id": "raw",
+      "type": "database",
+      "label": "私有 S3 資料桶",
+      "sublabel": "raw/ · quarantine/",
+      "pos": [
+        360,
+        740
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 210,
+          "end_line": 237
+        },
+        {
+          "path": "backend/market_data/market_data/storage.py",
+          "line": 25,
+          "end_line": 39
+        }
+      ]
+    },
+    {
+      "id": "monitor",
+      "type": "messagebus",
+      "label": "CloudWatch / SNS",
+      "sublabel": "失敗／健康度 · SQS 接收",
+      "pos": [
+        40,
+        270
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "terraform/9_eks/ingress.tf",
+          "line": 103,
+          "end_line": 125
+        },
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 258,
+          "end_line": 277
+        }
+      ]
+    },
+    {
+      "id": "nodes",
+      "type": "cloud",
+      "label": "EKS Managed Nodes",
+      "sublabel": "固定 digest · 非 root 容器",
+      "pos": [
+        40,
+        970
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 148,
+          "end_line": 193
+        },
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 9,
+          "end_line": 43
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "client-edge",
+      "from": "client",
+      "to": "edge",
+      "label": "HTTPS"
+    },
+    {
+      "id": "edge-alb",
+      "from": "edge",
+      "to": "alb",
+      "label": "VPC origin"
+    },
+    {
+      "id": "alb-service",
+      "from": "alb",
+      "to": "service",
+      "label": "HTTP:30080"
+    },
+    {
+      "id": "service-api",
+      "from": "service",
+      "to": "api",
+      "label": "HTTP:8000"
+    },
+    {
+      "id": "api-appdb",
+      "from": "api",
+      "to": "appdb",
+      "label": "Data API"
+    },
+    {
+      "id": "api-queue",
+      "from": "api",
+      "to": "queue",
+      "label": "job_id"
+    },
+    {
+      "id": "api-jwt",
+      "from": "api",
+      "to": "jwt",
+      "label": "驗證 JWT"
+    },
+    {
+      "id": "api-market",
+      "from": "api",
+      "to": "market",
+      "label": "只讀行情"
+    },
+    {
+      "id": "api-identity",
+      "from": "api",
+      "to": "identity",
+      "label": "API SA"
+    },
+    {
+      "id": "etl-identity",
+      "from": "etl",
+      "to": "identity",
+      "label": "ETL SA"
+    },
+    {
+      "id": "identity-secrets",
+      "from": "identity",
+      "to": "secrets",
+      "label": "自身 secret"
+    },
+    {
+      "id": "source-etl",
+      "from": "source",
+      "to": "etl",
+      "label": "日線"
+    },
+    {
+      "id": "etl-market",
+      "from": "etl",
+      "to": "market",
+      "label": "寫入行情"
+    },
+    {
+      "id": "etl-raw",
+      "from": "etl",
+      "to": "raw",
+      "label": "保存證據"
+    },
+    {
+      "id": "etl-monitor",
+      "from": "etl",
+      "to": "monitor",
+      "label": "失敗告警"
+    },
+    {
+      "id": "alb-monitor",
+      "from": "alb",
+      "to": "monitor",
+      "label": "健康告警"
+    },
+    {
+      "from": "queue",
+      "label": "報告結果",
+      "to": "appdb",
+      "id": "queue-appdb"
+    }
+  ]
+}

@@ -1,0 +1,434 @@
+{
+  "schema_version": 2,
+  "diagram_type": "workflow",
+  "meta": {
+    "title": "Alex｜CI 與按一次發布的 CD",
+    "locale": "zh-TW",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/cicd.html",
+    "repository": {
+      "url": "https://github.com/husky0787/Alex",
+      "revision": "461493930d952bd98025d73221530330e93c12bf"
+    }
+  },
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "部署狀態 · 2026-11-01",
+      "items": [
+        "AWS 工作負載與部署基礎設定已清理；本頁是實作與歷史驗收架構，不是在線服務清單。",
+        "CI 保留；AWS CD／復原已停用。各次驗收環境不同，不能視為同時部署。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "CI 與 CD 的界線",
+      "items": [
+        "PR 或 main 更新只觸發 CI；合併不會自動建立 EKS。",
+        "CD 只接受同一 commit 已成功的 CI、完整必要 jobs 與未過期產物；校驗 archive hash 與來源標籤。",
+        "GitHub OIDC 提供短期 AWS 憑證；不把長期 AWS access key 放入 workflow。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "這個發布實際做什麼",
+      "items": [
+        "使用已測試映像建立臨時 EKS API 環境，採 PostgreSQL／JWT／AWS transport fixtures。",
+        "先驗證基線，再發布候選；無效 digest 故障注入後回滾，重新確認 API 與資料 schema。",
+        "不是完整前端、ETL、研究和五代理的生產發布；沒有把 Task9 或 Task11 當成同一個環境。"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "失敗也必須清理",
+      "items": [
+        "gate 成功且 deploy 未跳過時，cleanup job 使用 always()；即使部署失敗仍嘗試清理。",
+        "workflow_run、每小時排程與手動復原補救中斷；只清除符合 ownership／期限條件的資源。",
+        "目前兩個 AWS 工作流程已停用且 IAM／OIDC／ECR 已刪除；本頁發布不會重新啟用。"
+      ]
+    }
+  ],
+  "lanes": [
+    {
+      "id": "ci",
+      "label": "CI · 自動驗證"
+    },
+    {
+      "id": "release",
+      "label": "CD · 手動發布"
+    },
+    {
+      "id": "test",
+      "label": "臨時 EKS 驗收"
+    },
+    {
+      "id": "cleanup",
+      "label": "清理與復原",
+      "variant": "exception"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "commit",
+      "lane": "ci",
+      "col": 0,
+      "type": "external",
+      "label": "PR / main",
+      "sublabel": "自動觸發 CI",
+      "sources": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "line": 1,
+          "end_line": 14
+        }
+      ]
+    },
+    {
+      "id": "tests",
+      "lane": "ci",
+      "col": 1,
+      "type": "backend",
+      "label": "測試與靜態檢查",
+      "sublabel": "API／前端／IaC",
+      "sources": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "line": 16,
+          "end_line": 134
+        }
+      ]
+    },
+    {
+      "id": "build",
+      "lane": "ci",
+      "col": 2,
+      "type": "backend",
+      "label": "建置兩版映像",
+      "sublabel": "current + parent",
+      "sources": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "line": 16,
+          "end_line": 134
+        }
+      ]
+    },
+    {
+      "id": "local",
+      "lane": "ci",
+      "col": 3,
+      "type": "backend",
+      "label": "k3d 發布驗證",
+      "sublabel": "故障回滾與 smoke",
+      "sources": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "line": 16,
+          "end_line": 134
+        }
+      ]
+    },
+    {
+      "id": "artifact",
+      "lane": "ci",
+      "col": 4,
+      "type": "database",
+      "label": "tested-images",
+      "sublabel": "main 封存保留 3 日",
+      "sources": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "line": 16,
+          "end_line": 134
+        }
+      ]
+    },
+    {
+      "id": "manual",
+      "lane": "release",
+      "col": 0,
+      "type": "external",
+      "label": "Run workflow",
+      "sublabel": "操作人員選擇 main",
+      "sources": [
+        {
+          "path": ".github/workflows/cd.yml",
+          "line": 13,
+          "end_line": 133
+        }
+      ]
+    },
+    {
+      "id": "gate",
+      "lane": "release",
+      "col": 1,
+      "type": "security",
+      "label": "相同 SHA 的 CI",
+      "sublabel": "成功 jobs／有效產物",
+      "sources": [
+        {
+          "path": "deploy/cd/gate.py",
+          "line": 12,
+          "end_line": 60
+        }
+      ]
+    },
+    {
+      "id": "window",
+      "lane": "release",
+      "col": 2,
+      "type": "security",
+      "label": "發布條件",
+      "sublabel": "有效期限／復原已開啟",
+      "sources": [
+        {
+          "path": ".github/workflows/cd.yml",
+          "line": 62,
+          "end_line": 76
+        }
+      ]
+    },
+    {
+      "id": "oidc",
+      "lane": "release",
+      "col": 3,
+      "type": "security",
+      "label": "GitHub OIDC",
+      "sublabel": "短期憑證／指定帳號",
+      "sources": [
+        {
+          "path": ".github/workflows/cd.yml",
+          "line": 77,
+          "end_line": 85
+        }
+      ]
+    },
+    {
+      "id": "eks",
+      "lane": "release",
+      "col": 4,
+      "type": "cloud",
+      "label": "臨時 EKS",
+      "sublabel": "CloudFormation 管理",
+      "sources": [
+        {
+          "path": "deploy/cd/lifecycle.py",
+          "line": 109,
+          "end_line": 136
+        }
+      ]
+    },
+    {
+      "id": "baseline",
+      "lane": "test",
+      "col": 1,
+      "type": "backend",
+      "label": "基線 smoke",
+      "sublabel": "驗證 API／授權",
+      "sources": [
+        {
+          "path": "deploy/cd/cloud_acceptance.py",
+          "line": 87,
+          "end_line": 152
+        }
+      ]
+    },
+    {
+      "id": "candidate",
+      "lane": "test",
+      "col": 2,
+      "type": "backend",
+      "label": "候選版本發布",
+      "sublabel": "ECR digest／健康檢查",
+      "sources": [
+        {
+          "path": "deploy/cd/cloud_acceptance.py",
+          "line": 87,
+          "end_line": 152
+        }
+      ]
+    },
+    {
+      "id": "rollback",
+      "lane": "test",
+      "col": 3,
+      "type": "backend",
+      "label": "故障回滾演練",
+      "sublabel": "無效 digest → 舊版",
+      "sources": [
+        {
+          "path": "deploy/cd/cloud_acceptance.py",
+          "line": 134,
+          "end_line": 152
+        }
+      ]
+    },
+    {
+      "id": "evidence",
+      "lane": "test",
+      "col": 4,
+      "type": "database",
+      "label": "保存驗收證據",
+      "sublabel": "JSON · 保留 14 日",
+      "sources": [
+        {
+          "path": ".github/workflows/cd.yml",
+          "line": 88,
+          "end_line": 95
+        }
+      ]
+    },
+    {
+      "id": "recovery",
+      "lane": "cleanup",
+      "col": 0,
+      "type": "backend",
+      "label": "獨立復原工作",
+      "sublabel": "完成事件／每小時／手動",
+      "sources": [
+        {
+          "path": ".github/workflows/cd-recovery.yml",
+          "line": 1,
+          "end_line": 63
+        }
+      ]
+    },
+    {
+      "id": "cleanup",
+      "lane": "cleanup",
+      "col": 3,
+      "type": "backend",
+      "label": "刪除所屬資源",
+      "sublabel": "執行環境／映像標籤",
+      "sources": [
+        {
+          "path": "deploy/cd/lifecycle.py",
+          "line": 159,
+          "end_line": 199
+        },
+        {
+          "path": ".github/workflows/cd.yml",
+          "line": 97,
+          "end_line": 133
+        }
+      ]
+    },
+    {
+      "id": "verify",
+      "lane": "cleanup",
+      "col": 4,
+      "type": "database",
+      "label": "查證清理結果",
+      "sublabel": "確認 EKS 已不存在",
+      "sources": [
+        {
+          "path": "deploy/cd/lifecycle.py",
+          "line": 178,
+          "end_line": 199
+        }
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "id": "commit-tests",
+      "from": "commit",
+      "to": "tests"
+    },
+    {
+      "id": "tests-build",
+      "from": "tests",
+      "to": "build",
+      "label": "通過"
+    },
+    {
+      "id": "build-local",
+      "from": "build",
+      "to": "local"
+    },
+    {
+      "id": "local-artifact",
+      "from": "local",
+      "to": "artifact",
+      "label": "通過"
+    },
+    {
+      "id": "manual-gate",
+      "from": "manual",
+      "to": "gate"
+    },
+    {
+      "id": "artifact-gate",
+      "from": "artifact",
+      "to": "gate",
+      "label": "精確 SHA"
+    },
+    {
+      "id": "gate-window",
+      "from": "gate",
+      "to": "window",
+      "label": "符合"
+    },
+    {
+      "id": "window-oidc",
+      "from": "window",
+      "to": "oidc",
+      "label": "允許"
+    },
+    {
+      "id": "oidc-eks",
+      "from": "oidc",
+      "to": "eks",
+      "label": "建立"
+    },
+    {
+      "id": "eks-baseline",
+      "from": "eks",
+      "to": "baseline",
+      "label": "隔離測試"
+    },
+    {
+      "id": "baseline-candidate",
+      "from": "baseline",
+      "to": "candidate",
+      "label": "通過"
+    },
+    {
+      "id": "candidate-rollback",
+      "from": "candidate",
+      "to": "rollback",
+      "label": "通過"
+    },
+    {
+      "id": "rollback-evidence",
+      "from": "rollback",
+      "to": "evidence",
+      "label": "檢查恢復"
+    },
+    {
+      "id": "evidence-cleanup",
+      "from": "evidence",
+      "to": "cleanup",
+      "label": "always"
+    },
+    {
+      "id": "recovery-cleanup",
+      "from": "recovery",
+      "to": "cleanup",
+      "label": "所屬／到期"
+    },
+    {
+      "id": "cleanup-verify",
+      "from": "cleanup",
+      "to": "verify",
+      "label": "查證"
+    }
+  ],
+  "mainPath": [
+    "manual",
+    "gate",
+    "window",
+    "oidc",
+    "eks"
+  ]
+}

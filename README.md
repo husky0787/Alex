@@ -16,37 +16,20 @@ The foundation is Ed Donner's *AI in Production* course. The linked evidence sep
 
 ## Architecture
 
-The original serverless application path is below. The [full component map](docs/showcase/architecture.md) also shows the Kubernetes API/ETL alternative and distinguishes the separate acceptance environments.
+The overview combines the application, data engineering, Kubernetes and delivery capabilities. Open a focused view below for implementation details. The [deployment boundaries](docs/showcase/architecture.md) distinguish the separate historical acceptance environments. Diagrams use Traditional Chinese with original technical identifiers.
 
-```mermaid
-flowchart LR
-    Browser[Browser] -->|Sign in| Clerk[Clerk]
-    Browser -->|HTTPS| CloudFront[CloudFront]
-    CloudFront -->|Static application| S3[S3]
-    CloudFront -->|/api/*| API[API Gateway]
-    API -->|JWT-validated request| APILambda[FastAPI Lambda]
-    APILambda -->|Data API| Aurora[(Aurora Serverless v2<br/>PostgreSQL)]
-    APILambda -->|Create analysis job| Queue[SQS]
+[![Interactive diagram](docs/diagrams/architecture.svg)](https://husky0787.github.io/Alex/diagrams/architecture.html)
 
-    Queue --> Planner[Planner Lambda]
-    Operator[Explicit classification preflight] --> Tagger[Tagger Lambda]
-    Tagger -->|Reference data| Aurora
-    Planner --> Reporter[Reporter Lambda]
-    Planner --> Charter[Charter Lambda]
-    Planner --> Retirement[Retirement Lambda]
-    Reporter -->|Markdown report| Aurora
-    Charter -->|Recharts JSON| Aurora
-    Retirement -->|Projection output| Aurora
-    Reporter -->|Research context| Vectors[(S3 Vectors)]
+[Interactive diagram →](https://husky0787.github.io/Alex/diagrams/architecture.html) · [PNG](docs/diagrams/architecture.png)
 
-    Scheduler[EventBridge Scheduler<br/>optional] --> SchedulerLambda[Scheduler Lambda]
-    SchedulerLambda -->|Function URL| Researcher[Researcher<br/>container-image Lambda]
-    Researcher -->|Playwright MCP research| Web[Web sources]
-    Researcher -->|Ingest research| Ingest[Ingest Lambda]
-    Ingest -->|Embeddings| SageMaker[SageMaker endpoint]
-    SageMaker --> Ingest
-    Ingest --> Vectors
-```
+**Detailed interactive views (Traditional Chinese):**
+
+- [Market data engineering](https://husky0787.github.io/Alex/diagrams/data-engineering.html)
+- [Kubernetes deployment](https://husky0787.github.io/Alex/diagrams/kubernetes.html)
+- [Analysis request sequence](https://husky0787.github.io/Alex/diagrams/analysis.html)
+- [CI and manual CD](https://husky0787.github.io/Alex/diagrams/cicd.html)
+
+[Browse all five diagrams](https://husky0787.github.io/Alex/)
 
 ## System Behavior
 

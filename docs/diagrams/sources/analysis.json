@@ -1,0 +1,330 @@
+{
+  "schema_version": 1,
+  "diagram_type": "sequence",
+  "meta": {
+    "title": "Alex｜一次分析請求的資料與時序",
+    "locale": "zh-TW",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/analysis.html",
+    "repository": {
+      "url": "https://github.com/husky0787/Alex",
+      "revision": "461493930d952bd98025d73221530330e93c12bf"
+    }
+  },
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "部署狀態 · 2026-11-01",
+      "items": [
+        "AWS 工作負載與部署基礎設定已清理；本頁是實作與歷史驗收架構，不是在線服務清單。",
+        "CI 保留；AWS CD／復原已停用。各次驗收環境不同，不能視為同時部署。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "示意與真實邊界",
+      "items": [
+        "垂直距離僅表達先後，不是實測延遲。資料庫泳道合併表示應用與行情儲存，實際連線邊界見架構圖。",
+        "Tagger 是分析前另行執行的分類前置步驟，不是本次 Planner 的工具。",
+        "Reporter 的研究檢索在報告生成前進行；研究不是行情，無研究仍顯示明確 unavailable 與已驗證持倉。"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "成功驗收不是只看 completed",
+      "items": [
+        "驗收需同時檢查三種輸出、來源與快照 SHA；Planner 正常結束不等於每個模型工具都保證成功。",
+        "Task11 已做真實 Clerk 登入驗收；Task9／CD 的測試 JWT 不可宣稱是真實使用者登入。"
+      ]
+    }
+  ],
+  "participants": [
+    {
+      "id": "ui",
+      "type": "frontend",
+      "label": "Next.js",
+      "sources": [
+        {
+          "path": "frontend/pages/advisor-team.tsx",
+          "line": 183,
+          "end_line": 214
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sources": [
+        {
+          "path": "backend/api/main.py",
+          "line": 585,
+          "end_line": 644
+        }
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "資料庫",
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/analysis.py",
+          "line": 15,
+          "end_line": 62
+        }
+      ]
+    },
+    {
+      "id": "sqs",
+      "type": "messagebus",
+      "label": "SQS",
+      "sources": [
+        {
+          "path": "backend/api/main.py",
+          "line": 585,
+          "end_line": 644
+        }
+      ]
+    },
+    {
+      "id": "planner",
+      "type": "backend",
+      "label": "Planner",
+      "sources": [
+        {
+          "path": "backend/planner/lambda_handler.py",
+          "line": 40,
+          "end_line": 113
+        }
+      ]
+    },
+    {
+      "id": "reporter",
+      "type": "backend",
+      "label": "Reporter",
+      "sources": [
+        {
+          "path": "backend/reporter/lambda_handler.py",
+          "line": 56,
+          "end_line": 108
+        }
+      ]
+    },
+    {
+      "id": "charter",
+      "type": "backend",
+      "label": "Charter",
+      "sources": [
+        {
+          "path": "backend/charter/lambda_handler.py",
+          "line": 92,
+          "end_line": 107
+        }
+      ]
+    },
+    {
+      "id": "retirement",
+      "type": "backend",
+      "label": "Retirement",
+      "sources": [
+        {
+          "path": "backend/retirement/lambda_handler.py",
+          "line": 81,
+          "end_line": 89
+        }
+      ]
+    }
+  ],
+  "messages": [
+    {
+      "id": "m1",
+      "from": "ui",
+      "to": "api",
+      "y": 180,
+      "label": "POST /api/analyze + JWT",
+      "note": "身分與持倉所有權驗證；此處開始的是分析工作。",
+      "variant": "default"
+    },
+    {
+      "id": "m2",
+      "from": "api",
+      "to": "db",
+      "y": 288,
+      "label": "讀取持倉與驗證價格",
+      "note": "行情庫使用 REPEATABLE READ READ ONLY；建立價格版本快照。",
+      "variant": "default"
+    },
+    {
+      "id": "m3",
+      "from": "db",
+      "to": "api",
+      "y": 396,
+      "label": "持倉＋日期化價格",
+      "note": "缺少必要價格回 422；依賴缺失或 DB 錯誤回 503，不排入 SQS。",
+      "variant": "return"
+    },
+    {
+      "id": "m4",
+      "from": "api",
+      "to": "db",
+      "y": 504,
+      "label": "保存 job + price_snapshot",
+      "note": "快照包含 trade_date、source、version、run_id、raw SHA 與 snapshot SHA。",
+      "variant": "default"
+    },
+    {
+      "id": "m5",
+      "from": "api",
+      "to": "sqs",
+      "y": 612,
+      "label": "SendMessage(job_id)",
+      "note": "送入佇列失敗則將 job 標記 failed，API 回 503。",
+      "variant": "default"
+    },
+    {
+      "id": "m6",
+      "from": "api",
+      "to": "ui",
+      "y": 720,
+      "label": "200 JSON：job_id",
+      "note": "前端保存工作 ID；這不是分析已完成。",
+      "variant": "return"
+    },
+    {
+      "id": "m7",
+      "from": "sqs",
+      "to": "planner",
+      "y": 828,
+      "label": "Lambda 事件：job_id",
+      "note": "SQS 非同步觸發；Planner 讀取已保存的快照。",
+      "variant": "default"
+    },
+    {
+      "id": "m8",
+      "from": "planner",
+      "to": "db",
+      "y": 936,
+      "label": "讀快照；標記 running",
+      "note": "分析期間不重新抓取行情；三個專責代理共用同一份價格基準。",
+      "variant": "default"
+    },
+    {
+      "id": "m9",
+      "from": "planner",
+      "to": "reporter",
+      "y": 1044,
+      "label": "工具呼叫：job_id",
+      "note": "以下示範一種順序；模型決定工具順序，不保證並行。",
+      "variant": "default"
+    },
+    {
+      "id": "m10",
+      "from": "reporter",
+      "to": "db",
+      "y": 1152,
+      "label": "保存 report_payload",
+      "note": "先以 SageMaker／S3 Vectors 取得研究；不可用時明確標示 unavailable。",
+      "variant": "default"
+    },
+    {
+      "id": "m11",
+      "from": "reporter",
+      "to": "planner",
+      "y": 1260,
+      "label": "工具結果",
+      "note": "報告附帶研究來源與價格快照 SHA。",
+      "variant": "return"
+    },
+    {
+      "id": "m12",
+      "from": "planner",
+      "to": "charter",
+      "y": 1368,
+      "label": "工具呼叫：job_id",
+      "note": "圖表採同一份持倉／價格基準。",
+      "variant": "default"
+    },
+    {
+      "id": "m13",
+      "from": "charter",
+      "to": "db",
+      "y": 1476,
+      "label": "保存 charts_payload",
+      "note": "Recharts JSON 保存於獨立工作欄位。",
+      "variant": "default"
+    },
+    {
+      "id": "m14",
+      "from": "charter",
+      "to": "planner",
+      "y": 1584,
+      "label": "工具結果",
+      "note": "工具錯誤仍需由協調流程處理；不能僅憑完成狀態推論所有輸出正確。",
+      "variant": "return"
+    },
+    {
+      "id": "m15",
+      "from": "planner",
+      "to": "retirement",
+      "y": 1692,
+      "label": "工具呼叫：job_id",
+      "note": "退休推算附價格日期與快照 SHA。",
+      "variant": "default"
+    },
+    {
+      "id": "m16",
+      "from": "retirement",
+      "to": "db",
+      "y": 1800,
+      "label": "保存 retirement_payload",
+      "note": "避免以記憶體結果取代持久化輸出。",
+      "variant": "default"
+    },
+    {
+      "id": "m17",
+      "from": "retirement",
+      "to": "planner",
+      "y": 1908,
+      "label": "工具結果",
+      "note": "返回執行結果。",
+      "variant": "return"
+    },
+    {
+      "id": "m18",
+      "from": "planner",
+      "to": "db",
+      "y": 2016,
+      "label": "完成後標記 completed",
+      "note": "Runner 正常返回後更新；例外標記 failed 並拋出。",
+      "variant": "default"
+    },
+    {
+      "id": "m19",
+      "from": "ui",
+      "to": "api",
+      "y": 2124,
+      "label": "GET /api/jobs/{job_id}",
+      "note": "前端定期輪詢；API 再驗證該工作屬於目前使用者。",
+      "variant": "default"
+    },
+    {
+      "id": "m20",
+      "from": "api",
+      "to": "db",
+      "y": 2232,
+      "label": "讀取工作狀態與結果",
+      "note": "查詢持久化輸出。",
+      "variant": "default"
+    },
+    {
+      "id": "m21",
+      "from": "api",
+      "to": "ui",
+      "y": 2340,
+      "label": "JSON：狀態與輸出",
+      "note": "前端顯示報告、圖表、退休推算。",
+      "variant": "return"
+    }
+  ]
+}

@@ -8,48 +8,18 @@ This is a code-backed component map. It combines capabilities verified in separa
 have been removed. This diagram describes the implementation and previously
 verified flows, not running infrastructure. See the [cleanup record](../verification/aws-account-cleanup.md).
 
-```mermaid
-flowchart TB
-    Human[Browser / Next.js] --> Clerk[Clerk sign-in]
-    Human -->|JWT-authenticated HTTP| API
-    subgraph Kubernetes[API and data engineering runtime: local k3d or bounded EKS]
-        API[FastAPI Deployment]
-        Cron[Daily CronJob / manual Job] --> ETL[Market ingestion and backfill]
-        ETL --> Quality[Quality checks and coverage]
-    end
-    Massive[Massive daily OHLCV API] --> ETL
-    ETL --> Raw[S3 raw response objects]
-    Quality -->|rejected source records| Quarantine[S3 quarantine manifests]
-    Quality -->|verified bars / run history| Market[(PostgreSQL market tables)]
-    API -->|dated prices / history| Market
-    API --> App[(Aurora application tables)]
-    API -->|freeze holdings and verified prices| Snapshot[Analysis price snapshot]
-    Snapshot --> App
-    API --> SQS[SQS analysis queue]
-    SQS --> Planner[Planner Lambda]
-    Planner --> Reporter[Reporter Lambda]
-    Planner --> Charter[Charter Lambda]
-    Planner --> Retirement[Retirement Lambda]
-    Reporter --> App
-    Charter --> App
-    Retirement --> App
-    Tagger[Tagger: explicit classification preflight] --> App
-    Web[Source pages] --> Researcher[Researcher + Playwright MCP]
-    Researcher -->|text + research ID + URLs + capture times| Ingest[Ingest Lambda]
-    Ingest --> Embed[SageMaker embeddings]
-    Embed --> Vectors[S3 Vectors index]
-    Reporter -->|embed query / retrieve attributed context| Vectors
-    API -->|read saved results| Human
-    Cron --> Events[Execution/alert events]
-    Events --> Alerts[CloudWatch / SNS / test SQS receiver]
-    CI[GitHub Actions CI] --> Runner[Disposable runner Kubernetes tests]
-    Runner --> Archives[Verified image archives + exact source SHA]
-    Operator[Operator: Run workflow on main] --> CD[Manual CD: CI gate + OIDC + ECR]
-    Archives --> CD
-    CD --> Temporary[Temporary EKS: API + isolated fixtures]
-    Temporary --> Verify[Authenticated checks + failed-release rollback]
-    Verify --> Cleanup[Delete owned runtime + image tags]
-```
+[![Interactive diagram](../diagrams/architecture.svg)](https://husky0787.github.io/Alex/diagrams/architecture.html)
+
+[Interactive diagram →](https://husky0787.github.io/Alex/diagrams/architecture.html) · [PNG](../diagrams/architecture.png)
+
+**Detailed interactive views (Traditional Chinese):**
+
+- [Market data engineering](https://husky0787.github.io/Alex/diagrams/data-engineering.html)
+- [Kubernetes deployment](https://husky0787.github.io/Alex/diagrams/kubernetes.html)
+- [Analysis request sequence](https://husky0787.github.io/Alex/diagrams/analysis.html)
+- [CI and manual CD](https://husky0787.github.io/Alex/diagrams/cicd.html)
+
+[Browse all five diagrams](https://husky0787.github.io/Alex/)
 
 CI tests images on disposable **runner Kubernetes**. The separate manual CD workflow
 consumes those exact archives and provisions its own temporary EKS API acceptance

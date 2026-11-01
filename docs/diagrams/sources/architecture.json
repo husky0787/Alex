@@ -1,0 +1,645 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Alex｜完整平台架構",
+    "locale": "zh-TW",
+    "quality_profile": "showcase",
+    "output": "docs/diagrams/architecture.html",
+    "repository": {
+      "url": "https://github.com/husky0787/Alex",
+      "revision": "461493930d952bd98025d73221530330e93c12bf"
+    }
+  },
+  "cards": [
+    {
+      "dot": "amber",
+      "title": "部署狀態 · 2026-11-01",
+      "items": [
+        "AWS 工作負載與部署基礎設定已清理；本頁是實作與歷史驗收架構，不是在線服務清單。",
+        "CI 保留；AWS CD／復原已停用。各次驗收環境不同，不能視為同時部署。"
+      ]
+    },
+    {
+      "dot": "cyan",
+      "title": "如何讀這張總覽",
+      "items": [
+        "API 可跑在 Lambda、本機或 Kubernetes；右下 CD 是獨立的臨時 EKS API 驗收，並非整站發布。",
+        "Kubernetes 圖展開 Task9 API／ETL；分析圖展開三個專責代理與快照。",
+        "原 CloudFront 將 /api/* 轉到 API Gateway／Lambda；靜態 S3 bucket 與行情資料桶分開。"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "資料邊界",
+      "items": [
+        "行情庫提供已驗證價格；Aurora 應用庫保存持倉、工作與不可變的分析價格基準。",
+        "S3 raw 是原始回應，quarantine 是拒收原因；prefix 本身不構成權限隔離。",
+        "研究經 SageMaker 與 S3 Vectors 檢索；研究內容不能代替權威行情。"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "協調邊界",
+      "items": [
+        "Planner 呼叫 Reporter／Charter／Retirement；呼叫順序由代理決定，不保證並行。",
+        "Tagger 是明確的分類前置步驟；不畫成 Planner 每次分析都會呼叫。",
+        "Reporter 檢索前也會產生查詢 embedding；研究不可用時標示 unavailable，不編造研究。"
+      ]
+    }
+  ],
+  "components": [
+    {
+      "id": "web",
+      "type": "frontend",
+      "label": "Next.js 前端",
+      "sublabel": "Clerk 登入 · 工作輪詢",
+      "pos": [
+        40,
+        40
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "frontend/pages/advisor-team.tsx",
+          "line": 183,
+          "end_line": 214
+        }
+      ]
+    },
+    {
+      "id": "api",
+      "type": "backend",
+      "label": "FastAPI",
+      "sublabel": "JWT／所有權檢查 · 價格快照",
+      "pos": [
+        360,
+        40
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/api/main.py",
+          "line": 585,
+          "end_line": 644
+        }
+      ]
+    },
+    {
+      "id": "queue",
+      "type": "messagebus",
+      "label": "SQS",
+      "sublabel": "只傳 job_id · 失敗進 DLQ",
+      "pos": [
+        680,
+        40
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/api/main.py",
+          "line": 585,
+          "end_line": 644
+        },
+        {
+          "path": "terraform/9_eks/main.tf",
+          "line": 244,
+          "end_line": 256
+        }
+      ]
+    },
+    {
+      "id": "planner",
+      "type": "backend",
+      "label": "Planner Lambda",
+      "sublabel": "Agents SDK · 工具協調",
+      "pos": [
+        970,
+        40
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/planner/lambda_handler.py",
+          "line": 40,
+          "end_line": 113
+        },
+        {
+          "path": "backend/planner/agent.py",
+          "line": 152,
+          "end_line": 248
+        }
+      ]
+    },
+    {
+      "id": "clerk",
+      "type": "security",
+      "label": "Clerk",
+      "sublabel": "JWT 身分驗證",
+      "pos": [
+        40,
+        250
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/api/main.py",
+          "line": 117,
+          "end_line": 123
+        }
+      ]
+    },
+    {
+      "id": "appdb",
+      "type": "database",
+      "label": "Aurora 應用庫",
+      "sublabel": "持倉 · jobs · 快照 · 結果",
+      "pos": [
+        360,
+        250
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/api/main.py",
+          "line": 585,
+          "end_line": 644
+        },
+        {
+          "path": "backend/reporter/lambda_handler.py",
+          "line": 56,
+          "end_line": 108
+        }
+      ]
+    },
+    {
+      "id": "tagger",
+      "type": "backend",
+      "label": "Tagger Lambda",
+      "sublabel": "獨立分類前置步驟",
+      "pos": [
+        680,
+        250
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "deploy/showcase/fixture.py",
+          "line": 34,
+          "end_line": 48
+        }
+      ]
+    },
+    {
+      "id": "workers",
+      "type": "backend",
+      "label": "分析代理群",
+      "sublabel": "Reporter · Charter · Retirement",
+      "pos": [
+        970,
+        250
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/reporter/lambda_handler.py",
+          "line": 56,
+          "end_line": 108
+        },
+        {
+          "path": "backend/charter/lambda_handler.py",
+          "line": 92,
+          "end_line": 107
+        },
+        {
+          "path": "backend/retirement/lambda_handler.py",
+          "line": 81,
+          "end_line": 89
+        }
+      ]
+    },
+    {
+      "id": "massive",
+      "type": "external",
+      "label": "Massive",
+      "sublabel": "每日 OHLCV · 非即時報價",
+      "pos": [
+        40,
+        470
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/provider.py",
+          "line": 7,
+          "end_line": 34
+        }
+      ]
+    },
+    {
+      "id": "etl",
+      "type": "backend",
+      "label": "Kubernetes ETL",
+      "sublabel": "CronJob／Job · 品質／回補",
+      "pos": [
+        360,
+        470
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 23,
+          "end_line": 76
+        },
+        {
+          "path": "backend/market_data/market_data/scheduled.py",
+          "line": 29,
+          "end_line": 80
+        },
+        {
+          "path": "backend/market_data/market_data/pipeline.py",
+          "line": 90,
+          "end_line": 169
+        }
+      ]
+    },
+    {
+      "id": "market",
+      "type": "database",
+      "label": "行情 PostgreSQL",
+      "sublabel": "版本 · 交易日 · 執行紀錄",
+      "pos": [
+        680,
+        470
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/repository.py",
+          "line": 85,
+          "end_line": 121
+        }
+      ]
+    },
+    {
+      "id": "bedrock",
+      "type": "cloud",
+      "label": "Amazon Bedrock",
+      "sublabel": "代理模型推論",
+      "pos": [
+        970,
+        470
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/planner/agent.py",
+          "line": 225,
+          "end_line": 248
+        }
+      ]
+    },
+    {
+      "id": "raw",
+      "type": "database",
+      "label": "私有 S3 資料桶",
+      "sublabel": "raw/ 與 quarantine/",
+      "pos": [
+        360,
+        680
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/market_data/market_data/storage.py",
+          "line": 25,
+          "end_line": 39
+        },
+        {
+          "path": "backend/market_data/market_data/pipeline.py",
+          "line": 171,
+          "end_line": 194
+        }
+      ]
+    },
+    {
+      "id": "vectors",
+      "type": "database",
+      "label": "S3 Vectors",
+      "sublabel": "研究向量 · 來源 URL／時間",
+      "pos": [
+        970,
+        680
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/research/research_chain/__init__.py",
+          "line": 52,
+          "end_line": 130
+        }
+      ]
+    },
+    {
+      "id": "researcher",
+      "type": "backend",
+      "label": "Researcher",
+      "sublabel": "Playwright MCP · 網頁研究",
+      "pos": [
+        40,
+        900
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/researcher/server.py",
+          "line": 104,
+          "end_line": 136
+        }
+      ]
+    },
+    {
+      "id": "ingest",
+      "type": "backend",
+      "label": "Ingest Lambda",
+      "sublabel": "驗證研究文件與來源",
+      "pos": [
+        360,
+        900
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/research/research_chain/__init__.py",
+          "line": 52,
+          "end_line": 130
+        },
+        {
+          "path": "docs/showcase/architecture.zh-TW.md",
+          "line": 5,
+          "end_line": 67
+        }
+      ]
+    },
+    {
+      "id": "embedding",
+      "type": "cloud",
+      "label": "SageMaker",
+      "sublabel": "384 維 embedding",
+      "pos": [
+        680,
+        900
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "backend/research/research_chain/__init__.py",
+          "line": 52,
+          "end_line": 130
+        }
+      ]
+    },
+    {
+      "id": "hosting",
+      "type": "cloud",
+      "label": "原網站託管",
+      "sublabel": "CloudFront／S3 · API Gateway",
+      "pos": [
+        40,
+        1120
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "README.zh-TW.md",
+          "line": 15,
+          "end_line": 44
+        }
+      ]
+    },
+    {
+      "id": "eks",
+      "type": "cloud",
+      "label": "Kubernetes API",
+      "sublabel": "Deployment · 本機 k3d／EKS",
+      "pos": [
+        360,
+        1120
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": "deploy/eks/manifests.py",
+          "line": 23,
+          "end_line": 76
+        }
+      ]
+    },
+    {
+      "id": "release",
+      "type": "backend",
+      "label": "GitHub Actions",
+      "sublabel": "CI → 手動 CD → 清理",
+      "pos": [
+        680,
+        1120
+      ],
+      "size": [
+        210,
+        84
+      ],
+      "sources": [
+        {
+          "path": ".github/workflows/ci.yml",
+          "line": 100,
+          "end_line": 134
+        },
+        {
+          "path": ".github/workflows/cd.yml",
+          "line": 13,
+          "end_line": 133
+        }
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "web-api",
+      "from": "web",
+      "to": "api",
+      "label": "JWT HTTP"
+    },
+    {
+      "id": "api-queue",
+      "from": "api",
+      "to": "queue",
+      "label": "job_id"
+    },
+    {
+      "id": "queue-planner",
+      "from": "queue",
+      "to": "planner",
+      "label": "觸發"
+    },
+    {
+      "id": "web-clerk",
+      "from": "web",
+      "to": "clerk",
+      "label": "登入"
+    },
+    {
+      "id": "api-appdb",
+      "from": "api",
+      "to": "appdb",
+      "label": "快照／工作"
+    },
+    {
+      "id": "tagger-appdb",
+      "from": "tagger",
+      "to": "appdb",
+      "label": "分類資料"
+    },
+    {
+      "id": "planner-workers",
+      "from": "planner",
+      "to": "workers",
+      "label": "工具呼叫"
+    },
+    {
+      "id": "workers-appdb",
+      "from": "workers",
+      "to": "appdb",
+      "label": "分欄保存"
+    },
+    {
+      "id": "massive-etl",
+      "from": "massive",
+      "to": "etl",
+      "label": "OHLCV"
+    },
+    {
+      "id": "etl-market",
+      "from": "etl",
+      "to": "market",
+      "label": "合格價格"
+    },
+    {
+      "id": "api-market",
+      "from": "api",
+      "to": "market",
+      "label": "讀取行情"
+    },
+    {
+      "id": "etl-raw",
+      "from": "etl",
+      "to": "raw",
+      "label": "原文／拒收"
+    },
+    {
+      "id": "workers-bedrock",
+      "from": "workers",
+      "to": "bedrock",
+      "label": "模型推論"
+    },
+    {
+      "id": "workers-vectors",
+      "from": "workers",
+      "to": "vectors",
+      "label": "Reporter 檢索"
+    },
+    {
+      "id": "researcher-ingest",
+      "from": "researcher",
+      "to": "ingest",
+      "label": "來源文件"
+    },
+    {
+      "id": "ingest-embedding",
+      "from": "ingest",
+      "to": "embedding",
+      "label": "文字"
+    },
+    {
+      "id": "ingest-vectors",
+      "from": "ingest",
+      "to": "vectors",
+      "label": "向量＋來源"
+    },
+    {
+      "id": "hosting-web",
+      "from": "hosting",
+      "to": "web",
+      "label": "靜態前端"
+    },
+    {
+      "id": "release-eks",
+      "from": "release",
+      "to": "eks",
+      "label": "隔離 API 驗收"
+    },
+    {
+      "id": "embedding-ingest",
+      "to": "ingest",
+      "label": "embedding",
+      "from": "embedding"
+    }
+  ]
+}

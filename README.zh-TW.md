@@ -12,35 +12,20 @@ Alex 以課程中的投資組合分析應用為基礎，延伸出可驗證的每
 
 ## 架構
 
-以下是原應用的 serverless 路徑。[完整元件圖](docs/showcase/architecture.zh-TW.md) 也包含 Kubernetes API／ETL 部署方式，並區分各次獨立驗收環境。
+總覽包含應用、資料工程、Kubernetes 與發布能力；再從下方四張細節圖展開實作。各環境並非同時部署，詳見[部署範圍](docs/showcase/architecture.zh-TW.md)。點擊預覽可開啟 Archify 互動版。
 
-```mermaid
-flowchart LR
-    Browser[Browser] -->|Sign in| Clerk[Clerk]
-    Browser -->|HTTPS| CloudFront[CloudFront]
-    CloudFront -->|Static application| S3[S3]
-    CloudFront -->|/api/*| API[API Gateway]
-    API -->|JWT-validated request| APILambda[FastAPI Lambda]
-    APILambda -->|Data API| Aurora[(Aurora Serverless v2<br/>PostgreSQL)]
-    APILambda -->|Create analysis job| Queue[SQS]
-    Queue --> Planner[Planner Lambda]
-    Operator[Explicit classification preflight] --> Tagger[Tagger Lambda]
-    Tagger -->|Reference data| Aurora
-    Planner --> Reporter[Reporter Lambda]
-    Planner --> Charter[Charter Lambda]
-    Planner --> Retirement[Retirement Lambda]
-    Reporter -->|Markdown report| Aurora
-    Charter -->|Recharts JSON| Aurora
-    Retirement -->|Projection output| Aurora
-    Reporter -->|Research context| Vectors[(S3 Vectors)]
-    Scheduler[EventBridge Scheduler<br/>optional] --> SchedulerLambda[Scheduler Lambda]
-    SchedulerLambda -->|Function URL| Researcher[Researcher<br/>container-image Lambda]
-    Researcher -->|Playwright MCP research| Web[Web sources]
-    Researcher -->|Ingest research| Ingest[Ingest Lambda]
-    Ingest -->|Embeddings| SageMaker[SageMaker endpoint]
-    SageMaker --> Ingest
-    Ingest --> Vectors
-```
+[![互動圖](docs/diagrams/architecture.svg)](https://husky0787.github.io/Alex/diagrams/architecture.html)
+
+[互動圖 →](https://husky0787.github.io/Alex/diagrams/architecture.html) · [PNG](docs/diagrams/architecture.png)
+
+**詳細圖（互動版）：**
+
+- [行情資料工程](https://husky0787.github.io/Alex/diagrams/data-engineering.html)
+- [Kubernetes 部署](https://husky0787.github.io/Alex/diagrams/kubernetes.html)
+- [分析請求時序](https://husky0787.github.io/Alex/diagrams/analysis.html)
+- [CI 與手動 CD](https://husky0787.github.io/Alex/diagrams/cicd.html)
+
+[全部五張圖的導覽](https://husky0787.github.io/Alex/)
 
 ## 系統如何運作
 

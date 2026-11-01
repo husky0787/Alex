@@ -12,26 +12,9 @@ Run from the repository root. This environment is an eight-hour acceptance windo
 
 ## Architecture
 
-```mermaid
-flowchart LR
-  TestClient[HTTPS client / test JWT] --> CF[New CloudFront distribution]
-  CF --> VPC[CloudFront VPC origin]
-  VPC --> ALB[Internal ALB]
-  ALB --> API[EKS API Deployment / HPA]
-  Cron[EKS daily CronJob] --> ETL[Shared daily / backfill ETL]
-  Manual[Manual Job] --> ETL
-  API --> SQS[Isolated SQS queue]
-  SQS --> Reporter[Isolated Lambda Reporter]
-  API --> DB[Existing Aurora / new alex_task09 database]
-  Reporter --> DB
-  ETL --> DB
-  ETL --> S3[Private raw / quarantine S3 prefixes]
-  API --> APISecret[API Pod Identity / own secret]
-  ETL --> ETLSecret[ETL Pod Identity / own secret]
-  ETL --> SNS[SNS alerts]
-  Alarm[ALB health alarm] --> SNS
-  SNS --> Inbox[SQS alert receiver]
-```
+[![Interactive diagram](../../docs/diagrams/kubernetes.svg)](https://husky0787.github.io/Alex/diagrams/kubernetes.html)
+
+[Interactive diagram →](https://husky0787.github.io/Alex/diagrams/kubernetes.html) · [PNG](../../docs/diagrams/kubernetes.png)
 
 The API and ETL use distinct ServiceAccounts, Pod Identity roles, Secrets Manager values and PostgreSQL roles. The API can read validated prices but cannot modify them. ETL cannot modify application users/accounts. Raw and quarantine objects share a private data bucket with different prefixes; the frontend bucket is separate. Quarantine objects are immutable manifests pointing to the original response and its digest, not duplicate frontend assets.
 

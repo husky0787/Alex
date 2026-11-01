@@ -1,0 +1,4 @@
+# Preserve exact verified renderer/export bytes; whitespace is generated.
+*.html -text linguist-generated=true whitespace=-blank-at-eol
+*.svg -text linguist-generated=true whitespace=-blank-at-eol
+*.png binary linguist-generated=true

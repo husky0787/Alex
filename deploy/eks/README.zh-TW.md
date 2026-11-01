@@ -8,26 +8,9 @@
 
 ## 架構
 
-```mermaid
-flowchart LR
-  TestClient[HTTPS client / test JWT] --> CF[New CloudFront distribution]
-  CF --> VPC[CloudFront VPC origin]
-  VPC --> ALB[Internal ALB]
-  ALB --> API[EKS API Deployment / HPA]
-  Cron[EKS daily CronJob] --> ETL[Shared daily / backfill ETL]
-  Manual[Manual Job] --> ETL
-  API --> SQS[Isolated SQS queue]
-  SQS --> Reporter[Isolated Lambda Reporter]
-  API --> DB[Existing Aurora / new alex_task09 database]
-  Reporter --> DB
-  ETL --> DB
-  ETL --> S3[Private raw / quarantine S3 prefixes]
-  API --> APISecret[API Pod Identity / own secret]
-  ETL --> ETLSecret[ETL Pod Identity / own secret]
-  ETL --> SNS[SNS alerts]
-  Alarm[ALB health alarm] --> SNS
-  SNS --> Inbox[SQS alert receiver]
-```
+[![互動圖](../../docs/diagrams/kubernetes.svg)](https://husky0787.github.io/Alex/diagrams/kubernetes.html)
+
+[互動圖 →](https://husky0787.github.io/Alex/diagrams/kubernetes.html) · [PNG](../../docs/diagrams/kubernetes.png)
 
 API 與 ETL 使用不同 ServiceAccounts、Pod Identity roles、Secrets Manager 值與 PostgreSQL roles。API 可讀已驗證價格但不可修改；ETL 不可修改應用使用者／帳戶。raw 與 quarantine 物件放在同一私有資料 bucket 的不同 prefixes；前端 bucket 獨立。隔離物件是不可變 manifest，指向原始回應與其 digest，不是重複的前端檔案。
 

@@ -6,48 +6,18 @@
 
 **部署狀態（2026-11-01）：**AWS 元件與部署基礎設定已移除。本圖說明實作與過去驗證的流程，不是目前運行中的資源清單。見[清理紀錄](../verification/aws-account-cleanup.zh-TW.md)。
 
-```mermaid
-flowchart TB
-    Human[Browser / Next.js] --> Clerk[Clerk sign-in]
-    Human -->|JWT-authenticated HTTP| API
-    subgraph Kubernetes[API and data engineering runtime: local k3d or bounded EKS]
-        API[FastAPI Deployment]
-        Cron[Daily CronJob / manual Job] --> ETL[Market ingestion and backfill]
-        ETL --> Quality[Quality checks and coverage]
-    end
-    Massive[Massive daily OHLCV API] --> ETL
-    ETL --> Raw[S3 raw response objects]
-    Quality -->|rejected source records| Quarantine[S3 quarantine manifests]
-    Quality -->|verified bars / run history| Market[(PostgreSQL market tables)]
-    API -->|dated prices / history| Market
-    API --> App[(Aurora application tables)]
-    API -->|freeze holdings and verified prices| Snapshot[Analysis price snapshot]
-    Snapshot --> App
-    API --> SQS[SQS analysis queue]
-    SQS --> Planner[Planner Lambda]
-    Planner --> Reporter[Reporter Lambda]
-    Planner --> Charter[Charter Lambda]
-    Planner --> Retirement[Retirement Lambda]
-    Reporter --> App
-    Charter --> App
-    Retirement --> App
-    Tagger[Tagger: explicit classification preflight] --> App
-    Web[Source pages] --> Researcher[Researcher + Playwright MCP]
-    Researcher -->|text + research ID + URLs + capture times| Ingest[Ingest Lambda]
-    Ingest --> Embed[SageMaker embeddings]
-    Embed --> Vectors[S3 Vectors index]
-    Reporter -->|embed query / retrieve attributed context| Vectors
-    API -->|read saved results| Human
-    Cron --> Events[Execution/alert events]
-    Events --> Alerts[CloudWatch / SNS / test SQS receiver]
-    CI[GitHub Actions CI] --> Runner[Disposable runner Kubernetes tests]
-    Runner --> Archives[Verified image archives + exact source SHA]
-    Operator[Operator: Run workflow on main] --> CD[Manual CD: CI gate + OIDC + ECR]
-    Archives --> CD
-    CD --> Temporary[Temporary EKS: API + isolated fixtures]
-    Temporary --> Verify[Authenticated checks + failed-release rollback]
-    Verify --> Cleanup[Delete owned runtime + image tags]
-```
+[![互動圖](../diagrams/architecture.svg)](https://husky0787.github.io/Alex/diagrams/architecture.html)
+
+[互動圖 →](https://husky0787.github.io/Alex/diagrams/architecture.html) · [PNG](../diagrams/architecture.png)
+
+**詳細圖（互動版）：**
+
+- [行情資料工程](https://husky0787.github.io/Alex/diagrams/data-engineering.html)
+- [Kubernetes 部署](https://husky0787.github.io/Alex/diagrams/kubernetes.html)
+- [分析請求時序](https://husky0787.github.io/Alex/diagrams/analysis.html)
+- [CI 與手動 CD](https://husky0787.github.io/Alex/diagrams/cicd.html)
+
+[全部五張圖的導覽](https://husky0787.github.io/Alex/)
 
 CI 在一次性的 **runner Kubernetes** 測試映像。獨立的手動 CD 使用同一批已驗證映像封存，建立臨時 EKS API 驗收環境，搭配隔離的 PostgreSQL／JWT／AWS transport fixtures。合併到 main 只跑 CI，AWS 發布由操作人員另行啟動。此 CD 不部署 ETL／前端，也不將應用切換到 Task9 環境。見[操作文件](../../deploy/cd/README.zh-TW.md)及[歷史驗收（英文）](../verification/manual-eks-cd.md)。
 

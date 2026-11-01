@@ -238,3 +238,6 @@ backend/**/*_lambda.zip
 
 # Local market database, private provider responses, and smoke-test output
 /.local/
+
+# Local diagram drafts and browser evidence
+/.archify/

@@ -1,0 +1,6 @@
+# Local Archify receipts contain machine-specific paths.
+*.delivery.json
+*.delivery-pending.json
+*.finalize.json
+*.finalize-summary.json
+*.browser-check.json

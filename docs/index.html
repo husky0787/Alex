@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Alex source-backed architecture: data engineering, Kubernetes, agent analysis and manual CI/CD. 程式碼佐證的五張互動架構圖。">
+<title>Alex｜互動架構圖 / Architecture atlas</title>
+<style>
+:root{color-scheme:light dark;--bg:#f4f7fb;--panel:#fff;--ink:#172537;--muted:#53657b;--line:#d8e2ec;--accent:#006b85;--notice:#fff4d6}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif}main{max-width:1180px;margin:auto;padding:44px 24px 64px}header{margin-bottom:28px}a{color:var(--accent);text-underline-offset:4px}a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}header nav{display:flex;gap:22px;flex-wrap:wrap}h1{font-size:clamp(30px,5vw,52px);letter-spacing:-1.4px;line-height:1.2;margin:30px 0 14px}h1 span{display:block;font-size:.46em;letter-spacing:0;margin-top:12px;font-weight:500;color:var(--muted)}.lead{max-width:850px;font-size:18px}.en{color:var(--muted);font-size:.92em}.notice{border:1px solid #d2b55e;background:var(--notice);padding:16px 20px;border-radius:12px;margin:24px 0 30px}.notice p{margin:4px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:24px}article{overflow:hidden;background:var(--panel);border:1px solid var(--line);border-radius:18px}article:first-child{grid-column:1/-1;display:grid;grid-template-columns:1.15fr 1fr}.preview{display:block;background:var(--panel);padding:16px;border-bottom:1px solid var(--line)}.preview img{display:block;width:100%;height:240px;object-fit:contain;object-position:top}.body{padding:22px 26px}.number{font:600 13px/1.2 monospace;color:var(--accent)}h2{margin:8px 0 0;font-size:24px}h2 a{text-decoration:none}.body>p.en{margin:0 0 14px}.body nav{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px;font-weight:600}footer{margin-top:36px;border-top:1px solid var(--line);padding-top:24px;color:var(--muted)}code{font-size:.9em;overflow-wrap:anywhere}@media(max-width:700px){main{padding:24px 16px}.grid{grid-template-columns:1fr}article:first-child{display:block}.body{padding:20px}.preview img{height:210px}}@media(prefers-color-scheme:dark){:root{--bg:#0b1220;--panel:#111d2d;--ink:#edf4fc;--muted:#a6b9ce;--line:#30435a;--accent:#69d2e8;--notice:#302713}}
+</style></head><body><main>
+<header><nav><a href="https://github.com/husky0787/Alex">GitHub</a><a href="https://github.com/husky0787/Alex/blob/main/README.zh-TW.md">繁體中文 README</a><a href="https://github.com/husky0787/Alex/blob/main/README.md" lang="en">English README</a></nav>
+<h1>Alex｜互動架構圖<span lang="en">Architecture, data engineering &amp; delivery</span></h1>
+<p class="lead">先看全貌，再沿著資料、部署、分析與發布流程展開。五張圖保留元件角色、失敗分支與原始碼來源。</p>
+<p class="en" lang="en">Start with the system overview, then explore four focused views. Interactive diagrams use Traditional Chinese labels with original technical identifiers and source links.</p></header>
+<aside class="notice"><strong>歷史實作架構 · AWS 資源已清理</strong><p>截至 2026-11-01，AWS 工作負載已移除，雲端發布／復原已停用。各圖整合不同驗收期間的能力，不表示所有元件曾同時部署。</p><p class="en" lang="en">Historical implementation, not a live deployment. AWS resources are retired; cloud release and recovery are disabled. Acceptance environments were separate.</p></aside>
+<section class="grid" aria-label="架構圖 / Diagrams"><article>
+      <a class="preview" href="diagrams/architecture.html" aria-label="完整平台架構 / Platform architecture"><img src="diagrams/architecture.svg" alt="完整平台架構 / Platform architecture" loading="lazy"></a>
+      <div class="body"><span class="number">01</span><h2><a href="diagrams/architecture.html">完整平台架構</a></h2><p class="en" lang="en">Platform architecture</p>
+      <p>從登入、資料儲存到代理分析與研究檢索。<br><span lang="en" class="en">Authentication, persistence, agent orchestration and research retrieval.</span></p>
+      <nav aria-label="完整平台架構 下載"><a href="diagrams/architecture.html">互動版 / Explore →</a><a href="diagrams/architecture.svg">SVG</a><a href="diagrams/architecture.png">PNG</a></nav></div>
+    </article><article>
+      <a class="preview" href="diagrams/data-engineering.html" aria-label="行情資料工程 / Market data engineering"><img src="diagrams/data-engineering.svg" alt="行情資料工程 / Market data engineering" loading="lazy"></a>
+      <div class="body"><span class="number">02</span><h2><a href="diagrams/data-engineering.html">行情資料工程</a></h2><p class="en" lang="en">Market data engineering</p>
+      <p>取得原文、品質隔離、版本載入、缺日回補與中斷恢復。<br><span lang="en" class="en">Raw evidence, quarantine, versioned loading, coverage and recovery.</span></p>
+      <nav aria-label="行情資料工程 下載"><a href="diagrams/data-engineering.html">互動版 / Explore →</a><a href="diagrams/data-engineering.svg">SVG</a><a href="diagrams/data-engineering.png">PNG</a></nav></div>
+    </article><article>
+      <a class="preview" href="diagrams/kubernetes.html" aria-label="Kubernetes 部署 / Kubernetes deployment"><img src="diagrams/kubernetes.svg" alt="Kubernetes 部署 / Kubernetes deployment" loading="lazy"></a>
+      <div class="body"><span class="number">03</span><h2><a href="diagrams/kubernetes.html">Kubernetes 部署</a></h2><p class="en" lang="en">Kubernetes deployment</p>
+      <p>Task9 的 API／ETL、網路入口、IAM、排程與告警。<br><span lang="en" class="en">Task9 API/ETL, ingress, workload IAM, scheduling and alerts.</span></p>
+      <nav aria-label="Kubernetes 部署 下載"><a href="diagrams/kubernetes.html">互動版 / Explore →</a><a href="diagrams/kubernetes.svg">SVG</a><a href="diagrams/kubernetes.png">PNG</a></nav></div>
+    </article><article>
+      <a class="preview" href="diagrams/analysis.html" aria-label="分析請求時序 / Analysis request sequence"><img src="diagrams/analysis.svg" alt="分析請求時序 / Analysis request sequence" loading="lazy"></a>
+      <div class="body"><span class="number">04</span><h2><a href="diagrams/analysis.html">分析請求時序</a></h2><p class="en" lang="en">Analysis request sequence</p>
+      <p>JWT、固定價格快照、SQS、三個專責代理與結果輪詢。<br><span lang="en" class="en">JWT, frozen prices, SQS, three specialists and persisted results.</span></p>
+      <nav aria-label="分析請求時序 下載"><a href="diagrams/analysis.html">互動版 / Explore →</a><a href="diagrams/analysis.svg">SVG</a><a href="diagrams/analysis.png">PNG</a></nav></div>
+    </article><article>
+      <a class="preview" href="diagrams/cicd.html" aria-label="CI 與手動 CD / CI and manual CD"><img src="diagrams/cicd.svg" alt="CI 與手動 CD / CI and manual CD" loading="lazy"></a>
+      <div class="body"><span class="number">05</span><h2><a href="diagrams/cicd.html">CI 與手動 CD</a></h2><p class="en" lang="en">CI and manual CD</p>
+      <p>精確版本驗證、臨時 EKS、發布／回滾與資源清理。<br><span lang="en" class="en">Exact-revision CI, temporary EKS, release, rollback and cleanup.</span></p>
+      <nav aria-label="CI 與手動 CD 下載"><a href="diagrams/cicd.html">互動版 / Explore →</a><a href="diagrams/cicd.svg">SVG</a><a href="diagrams/cicd.png">PNG</a></nav></div>
+    </article></section>
+<footer><p>互動圖可縮放、搜尋元件、追蹤路徑與查看原始碼；按瀏覽器上一頁返回目錄。下載的 SVG／PNG 是完整圖，目錄縮圖僅供預覽。</p>
+<p lang="en">Explore nodes, paths and pinned source references. SVG/PNG downloads contain the full diagram. Use your browser's Back button to return here.</p>
+<p>程式碼基準 / Source revision: <a href="https://github.com/husky0787/Alex/tree/461493930d952bd98025d73221530330e93c12bf"><code>4614939</code></a> · <a href="https://github.com/husky0787/Alex/blob/main/docs/diagrams/README.md">維護與驗證 / Maintenance</a> · <a href="https://github.com/husky0787/Alex/blob/main/docs/verification/aws-account-cleanup.zh-TW.md">清理紀錄 / Retirement record</a></p></footer>
+</main></body></html>

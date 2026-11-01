@@ -1,0 +1,70 @@
+{
+  "verified_on": "2026-11-01",
+  "diagrams": [
+    {
+      "diagram": "architecture",
+      "type": "architecture",
+      "artifact": "architecture.html",
+      "sha256": "44ed1a58e6e33d6210f04750e2641c5e274fd20eb1a16c17b3ffdfc8cb99adce",
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      },
+      "source_revision": "461493930d952bd98025d73221530330e93c12bf"
+    },
+    {
+      "diagram": "data-engineering",
+      "type": "dataflow",
+      "artifact": "data-engineering.html",
+      "sha256": "81424a8c5e5ee3f8454e44b71c67ea079c4a646d3e9b8b1c77015092c5606ed5",
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      },
+      "source_revision": "461493930d952bd98025d73221530330e93c12bf"
+    },
+    {
+      "diagram": "kubernetes",
+      "type": "architecture",
+      "artifact": "kubernetes.html",
+      "sha256": "329835873f77f9a8044c7ca22b8ce43578f6841ea5605bcbb4c96cfd228ca271",
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      },
+      "source_revision": "461493930d952bd98025d73221530330e93c12bf"
+    },
+    {
+      "diagram": "analysis",
+      "type": "sequence",
+      "artifact": "analysis.html",
+      "sha256": "c6694e6a1d7564b1c5996631dacb06a876b2858867515b058e85e51ac5b4acc2",
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      },
+      "source_revision": "461493930d952bd98025d73221530330e93c12bf"
+    },
+    {
+      "diagram": "cicd",
+      "type": "workflow",
+      "artifact": "cicd.html",
+      "sha256": "d7a7b55ac43b3e698ffc630113d575534a95eccc6c863c459ed48bd374b3fd74",
+      "gates": {
+        "validate": "pass",
+        "deliver": "pass",
+        "check": "pass",
+        "browser-check": "pass"
+      },
+      "source_revision": "461493930d952bd98025d73221530330e93c12bf"
+    }
+  ]
+}
