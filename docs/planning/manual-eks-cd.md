@@ -14,7 +14,11 @@ eligible. The release consumes its verified image archives without rebuilding.
   operate one CloudFormation stack; CloudFormation can provision the bounded EKS
   environment using pre-created cluster/node roles. Deployment/CloudFormation
   permissions exclude application secrets and original Aurora/Lambda/CloudFront
-  changes; their direct EC2 mutations require owned resource tags. The standard
+  changes. Network/template mutations require ownership tags; worker launches
+  require owned templates/subnets and t3.medium On-Demand instances with IMDSv2
+  required and hop limit 1. Launch dependencies (AMI, security group, ENI, volume)
+  have regional resource permissions, not a requirement that every generated
+  worker resource already carry ownership tags. The standard
   node CNI policy is a documented exception: it has account-wide ENI operations.
   IMDSv2 with response hop limit 1 prevents ordinary application Pods from obtaining
   node credentials. This is not a claim of fully VPC-scoped CNI permissions.

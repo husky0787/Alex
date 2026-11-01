@@ -40,7 +40,11 @@ cluster. It can also simulate permissions of its dedicated CloudFormation role
 to check both node/cluster role-inspection prerequisites before billable creation.
 CloudFormation may create tagged network resources and the named EKS
 cluster, and pass the fixed node/cluster roles. It cannot create arbitrary IAM
-roles. Node roles use standard EKS worker/CNI/ECR policies. These infrastructure
+roles. EKS also checks its caller's EC2 launch permission: launches require owned
+templates/subnets, t3.medium On-Demand and IMDSv2 with hop limit 1. AMI, security
+group, ENI and volume use is scoped to regional launch dependencies; generated
+worker resources are not all required to carry the template ownership tag.
+Node roles use standard EKS worker/CNI/ECR policies. These infrastructure
 permissions are broader than namespace-only app deployment; review them as such.
 In particular, the standard CNI policy permits account-wide ENI operations. The
 worker launch template requires IMDSv2 and hop limit 1, and application Pods use
